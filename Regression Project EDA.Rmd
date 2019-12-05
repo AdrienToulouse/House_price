@@ -51,6 +51,9 @@ plot(density(trainImputed$LogSalePrice))
 Check correlation between the different variable and then the correlation of Y with the variables.
 This ios not useful when you try to predict a variable. It is however very important when you try to see which variables are the most important to explain price. (Remember the p-value of statistical test for correlated variables). 
 
+
+# numeric variables
+
 ```{r}
 var.numeric <- colnames(trainImputed)[sapply(trainImputed, is.numeric)]
 
@@ -75,6 +78,15 @@ trainImputed %>%
   GGally::ggpairs(columns = c(length(var.numeric), 1:10))
 ```
 
+```{r}
+ggplot(trainImputed, aes(OverallQual, LogSalePrice)) + geom_point() + geom_smooth()
+```
+
+```{r}
+ggplot(trainImputed, aes(OverallCond, LogSalePrice)) + geom_point()
+```
+
+# Factor variables
 Plot Y as a factor of a factor variable by using boxplot. 
 
 ```{r}
@@ -89,5 +101,27 @@ ggplot(data = trainImputed) +
   geom_boxplot(aes(y=LogSalePrice, x = MSZoning))
 ```
 
-Looks like it is pertinent. 
+Looks like it is pertinent. Let's do a statistical test to show that there is a correlation statistically significant between the Sale price and the MSZoning.
+```{r}
+res.aov <- aov(LogSalePrice ~ MSZoning, data = trainImputed)
+summary(res.aov)
+```
+As the p-value is less than the significance level 0.05, we can conclude that there are significant differences between the different MSZoning and make us say that we should include MSZoning in the model. 
+
+```{r}
+ggplot(data = trainImputed) + 
+  geom_boxplot(aes(y=LogSalePrice, x = LotConfig))
+```
+
+```{r}
+res.aov <- aov(LogSalePrice ~ LotConfig, data = trainImputed)
+summary(res.aov)
+```
+
+
+```{r}
+ggplot(data = trainImputed) + 
+  geom_boxplot(aes(y=LogSalePrice, x = Neighborhood))
+```
+
 Try to plot the two variables together. (Ancova model with mszoning and property size for example)

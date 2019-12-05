@@ -13,79 +13,62 @@ knitr::opts_chunk$set(echo = TRUE)
 
 ```{r}
 library(dplyr)
+library(car)
 ```
 
 
 ```{r}
-trainImputed <- read.csv(file = 'train_imputed.csv')
+trainPP <- read.csv(file = 'train_preprocessed.csv')
 ```
 
 ```{r}
-str(trainImputed)
+str(trainPP)
+```
+
+```{r}
+trainPP$LogSalePrice <- log(trainPP$SalePrice)
+trainPP <- select(trainPP, -c("SalePrice"))
+plot(density(trainPP$LogSalePrice))
 ```
 
 
 ```{r}
-summary(trainImputed)
+price_lm = lm(LogSalePrice ~ ., data = trainPP)
+summary(price_lm)
+```
+
+```{r}
+select.variables.both = step(price_lm,scope= ~1,direction="both",trace=FALSE)
+summary(select.variables.both)
 ```
 
 
 ```{r}
-boxplot(trainImputed$SalePrice)
+select.variables.backward = step(price_lm,scope= ~1,direction="backward",trace=FALSE) 
+summary(select.variables.backward)
 ```
 
 ```{r}
-plot(density(trainImputed$SalePrice))
-```
-
-Reduce effect of the tail using log transformation (or BoxCox)
-
-```{r}
-trainImputed$LogSalePrice <- log(trainImputed$SalePrice)
-trainImputed <- select(trainImputed, -c("SalePrice"))
-plot(density(trainImputed$LogSalePrice))
-```
-
-Check correlation between the different variable and then the correlation of Y with the variables.
-This ios not useful when you try to predict a variable. It is however very important when you try to see which variables are the most important to explain price. (Remember the p-value of statistical test for correlated variables). 
-
-```{r}
-var.numeric <- colnames(trainImputed)[sapply(trainImputed, is.numeric)]
-
-trainImputed %>%
-  select(var.numeric) %>%
-  cor() %>%
-  corrplot(method = 'color', order = "hclust", tl.pos = 'n') %>%
-  heatmap (symm=T)
+extractAIC(select.variables.backward)
+extractAIC(select.variables.both)
 ```
 
 ```{r}
-trainImputed %>%
-  select(var.numeric) %>%
-  GGally::ggpairs(columns = c(length(var.numeric), 1:5))
+par(mfrow=c(2,2)) 
+plot(select.variables.both)
 ```
-
-Overall quality impact Sale Price. Looks like a linear relationship. we can include this predictor without doing any transformation. 
 
 ```{r}
-trainImputed %>%
-  select(var.numeric) %>%
-  GGally::ggpairs(columns = c(length(var.numeric), 1:10))
+acf(residuals(select.variables.both))
 ```
-
-Plot Y as a factor of a factor variable by using boxplot. 
 
 ```{r}
-ggplot(data = trainImputed) + 
-  geom_boxplot(aes(y=LogSalePrice, x = GarageQual))
+influenceIndexPlot(select.variables.both)
 ```
-
-May have an impact but doesn't follow totally intuition. 
 
 ```{r}
-ggplot(data = trainImputed) + 
-  geom_boxplot(aes(y=LogSalePrice, x = MSZoning))
+price_lm_2 = lm(LogSalePrice ~ YearBuilt + MSZoning, data = trainPP)
+summary(price_lm_2)
 ```
 
-Looks like it is pertinent. 
-Try to plot the two variables together. (Ancova model with mszoning and property size for example)
+
