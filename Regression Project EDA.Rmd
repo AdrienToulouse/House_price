@@ -1,0 +1,93 @@
+---
+title: "Regression Project"
+author: "Adrien Toulouse"
+date: "11/29/2019"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+# Avant preprocessing
+
+```{r}
+library(dplyr)
+library(corrplot)
+library(ggplot2)
+```
+
+
+```{r}
+trainImputed <- read.csv(file = 'train_imputed.csv')
+```
+
+```{r}
+str(trainImputed)
+```
+
+
+```{r}
+summary(trainImputed)
+```
+
+
+```{r}
+boxplot(trainImputed$SalePrice)
+```
+
+```{r}
+plot(density(trainImputed$SalePrice))
+```
+
+Reduce effect of the tail using log transformation (or BoxCox)
+
+```{r}
+trainImputed$LogSalePrice <- log(trainImputed$SalePrice)
+trainImputed <- select(trainImputed, -c("SalePrice"))
+plot(density(trainImputed$LogSalePrice))
+```
+
+Check correlation between the different variable and then the correlation of Y with the variables.
+This ios not useful when you try to predict a variable. It is however very important when you try to see which variables are the most important to explain price. (Remember the p-value of statistical test for correlated variables). 
+
+```{r}
+var.numeric <- colnames(trainImputed)[sapply(trainImputed, is.numeric)]
+
+trainImputed %>%
+  select(var.numeric) %>%
+  cor() %>%
+  corrplot(method = 'color', order = "hclust", tl.pos = 'n') %>%
+  heatmap (symm=T)
+```
+
+```{r}
+trainImputed %>%
+  select(var.numeric) %>%
+  GGally::ggpairs(columns = c(length(var.numeric), 1:5))
+```
+
+Overall quality impact Sale Price. Looks like a linear relationship. we can include this predictor without doing any transformation. 
+
+```{r}
+trainImputed %>%
+  select(var.numeric) %>%
+  GGally::ggpairs(columns = c(length(var.numeric), 1:10))
+```
+
+Plot Y as a factor of a factor variable by using boxplot. 
+
+```{r}
+ggplot(data = trainImputed) + 
+  geom_boxplot(aes(y=LogSalePrice, x = GarageQual))
+```
+
+May have an impact but doesn't follow totally intuition. 
+
+```{r}
+ggplot(data = trainImputed) + 
+  geom_boxplot(aes(y=LogSalePrice, x = MSZoning))
+```
+
+Looks like it is pertinent. 
+Try to plot the two variables together. (Ancova model with mszoning and property size for example)
