@@ -1,8 +1,7 @@
 ---
 title: "Regression Project"
-author: "Adrien Toulouse"
-date: "11/29/2019"
-output: html_document
+author: "Adrien Toulouse & Paul-Antoine Girard"
+output: pdf_document
 ---
 
 ```{r setup, include=FALSE}

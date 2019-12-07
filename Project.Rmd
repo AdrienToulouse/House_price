@@ -1,0 +1,82 @@
+---
+title: "MAP 535 - Data Analysis Project"
+author: "Adrien Toulouse & Paul-Antoine Girard"
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r libraries, include=FALSE}
+library(dplyr)
+library(corrplot)
+library(ggplot2)
+library(car)
+```
+
+## Introduction
+
+Write a short introduction describing the research problem. Clearly state the research hypothesis at the end.
+We are given to analyse a dataset, named **House Prices: Advanced Regression Techniques**. It contains the selling price of about 1500 residential homes along with 79 explanatory variables describing (almost) every aspect of houses in Ames, Iowa. The dataset has already been preprocessed to deal with all the missing values, so ours records the houses prices along with 68 variables.
+
+Our work will be focused on a particular task, that is finding the best linear prediction model with a minimum of variables. We will be focusing on at most 10 variables.
+Research hypothesis: **We can construct a model with 10 regressors that has an accuracy similar to models with all the variables**
+
+We will start by doing a general description of the data and applying descriptive statistics to better apprehend the data. Then, we will build linear regression models and see if the asumptions are verified. To finally, present the best of them.
+
+
+## Exploratory Data Analysis
+
+We start by uploading our data.
+```{r imports}
+trainImputed <- read.csv(file='train_imputed.csv')
+trainPP <- read.csv (file='train_preprocessed.csv')
+```
+
+As we have seen in the presentation of the dataset, we can use the log of the house price to...
+
+```{r}
+trainImputed$LogSalePrice <- log(trainImputed$SalePrice)
+trainImputed <- select(trainImputed, -c("SalePrice", "X"))
+trainPP$LogSalePrice <- log(trainPP$SalePrice)
+trainPP <- select(trainPP, -c("SalePrice", "X")) #X is unrelated to our study
+```
+
+Since the dataset contains a lot of different variables, we need to focus only on a part of them. Thus, we will first analyze the correlation between the numerical ones, to create groups and reduce the size of our regressors.
+
+```{r correlation}
+var.numeric <- colnames(trainImputed)[sapply(trainImputed, is.numeric)]
+
+trainImputed %>%
+  select(var.numeric) %>%
+  cor() %>%
+  corrplot(method = 'color', order = "hclust", tl.pos = 'n') %>%
+  heatmap (symm=T)
+
+## Don't know how to print only the second graph
+```
+
+
+
+## Modeling and Diagnostics
+
+In this part, we are going to build different linear regression models to see the differences between them, and then select the one that we think fits the best our research hypothesis.
+First, we will start by doing a linear regression with all the variables of the dataset.
+
+```{r}
+price_lm = lm(LogSalePrice ~ ., data = trainPP)
+summary(price_lm)
+```
+
+The results of this model show us that some of the variables are irrelevant (by looking at the pvalue of the test realized for each variables. We are going to select only the variables that have a pvalue inferior to 0.05.
+Therefore, 
+
+
+## Final model and prediction
+
+
+
+## Conclusion
+
+
