@@ -4,11 +4,11 @@ author: "Adrien Toulouse & Paul-Antoine Girard"
 output: pdf_document
 ---
 
-```{r setup, include=FALSE}
+```{r setup, message=FALSE, warning=FALSE, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE)
 ```
 
-```{r libraries, include=FALSE}
+```{r libraries, message=FALSE, warning=FALSE, include=FALSE}
 library(dplyr)
 library(corrplot)
 library(ggplot2)
@@ -17,56 +17,49 @@ library(car)
 
 ## Introduction
 
-Write a short introduction describing the research problem. Clearly state the research hypothesis at the end.
-
 Our task is to analyse a dataset, named **House Prices: Advanced Regression Techniques**. It contains our response variable, the sale price of about 1500 residential homes located in Ames, Iowa, along with 79 explanatory variables describing (almost) every aspect of the houses. The dataset has already been preprocessed to deal with missing values, so we will work on a reduced dataset containing 68 variables.
 
 Our work will be focused on finding the best linear prediction model using a minimum number of variables. We can therefore state our research hypothesis as follows: **Can we construct a performant linear regression model by selecting only the 10 most appropriate variables? How does it compare to larger models?** 
 
 To test our hypothesis, we will start by describing the data and apply descriptive statistics to better apprehend it and preprocess the variables if necessary. We will then try to select the most important variables and after checking if the linear model assumptions are verified, we will build multiple linear regression models and compare them.
 
+
 ## Exploratory Data Analysis
 
-We start by uploading our data.
-```{r imports}
+```{r imports, echo=FALSE}
 trainImputed <- read.csv(file='train_imputed.csv')
 trainPP <- read.csv (file='train_preprocessed.csv')
 ```
 
-A first transformation we do is to take the log of the house prices to reduce the effect of the tail in the density of our response variable. 
+We start by looking at the data to see how it is structured. We find that the *SalePrice* has skewness in its distribution. So, a first transformation we do is to take the log of the house prices to reduce the effect of the tail in the density of our response variable.
 
-```{r log transformation}
+```{r log transformation, message=FALSE, warning=FALSE, include=FALSE}
 par(mfrow=c(2,1)) 
-plot(density(trainImputed$SalePrice))
+plot(density(trainImputed$SalePrice), main='SalePrice density', sub='', xlab='', ylab='')
 trainImputed$LogSalePrice <- log(trainImputed$SalePrice)
-trainImputed <- select(trainImputed, -c("SalePrice", "X"))
+trainImputed <- select(trainImputed, -c("SalePrice", "X")) #X is unrelated to our study
 trainPP$LogSalePrice <- log(trainPP$SalePrice)
 trainPP <- select(trainPP, -c("SalePrice", "X")) #X is unrelated to our study
-plot(density(trainImputed$LogSalePrice))
+plot(density(trainImputed$LogSalePrice), main='Log SalePrice density', sub='', xlab='', ylab='')
 ```
 
-By ploting scatter plots, we find that some variables are strongly correlated with the Sale Price. Such variables are interesting to keep in a linear model as they explain well the price. 
-
-```{r}
+Then, we plot scatter plots for quantitative variables and boxplots for categorical variables. These plots help us to determine if some of them are highly related to the *SalePrice*, and might be added to our linear model. We determine that *Overallqual* seems to be strongly correlated with the *SalePrice*. This regressor rates the overall material and finish of the house. It is a kind of summary of other variables, so it can help us to reduce the size of our model as it explains well the price. Concerning categorical variables, a variable may need to be considered in our model if it has different boxplots for each category when considering the *SalePrice*, as this will indicate a clear dependency between the two variables. We then remark that the variable *MSZoning* corresponds to this situation and strength to be important to deal with in our model.
+**By going this way, we also determine that the following variables might be important to add to ou reduced linear model... However, some of them has outliers (need to deal with) or might be interesting to take the log of them or transform qualitative into levels...**
+```{r plots1, message=FALSE, warning=FALSE}
+par(mfrow=c(1,2)) 
 ggplot(trainImputed, aes(OverallQual, LogSalePrice)) + geom_point() + geom_smooth()
+(ggplot(data = trainImputed) + 
+  geom_boxplot(aes(y=LogSalePrice, x = MSZoning)))
 ```
 
-We can also plot boxplots for categorical variables. We are looking for variables that have different boxplots in each category when considering the Sale Price as this will indicate a clear dependency between the two variables. 
-
-```{r}
-ggplot(data = trainImputed) + 
-  geom_boxplot(aes(y=LogSalePrice, x = MSZoning))
-```
 
 This first analysis visually indicates clearly that MSZoning is an important variable to explain the Sale Price.
-
 ```{r}
 res.aov <- aov(LogSalePrice ~ MSZoning, data = trainImputed)
 summary(res.aov)
 ```
 
 This is confirmed by the one way Anova test as the p-value is less than the significance level 0.05. We can conclude that there are significant differences between the MSZoning caregories when considering the Sale Price and make us say that we should include MSZoning in our model.
-
 ```{r}
 ggplot(data = trainImputed) + 
   geom_boxplot(aes(y=LogSalePrice, x = GarageQual))
@@ -79,9 +72,10 @@ summary(res.aov)
 
 We find similar results when looking at the GarageQual variable. However, the boxplots do not completely follow intuition. Indeed the boxplots indicate that on average houses with garages in excellent quality have a lower sale price that garages in good quality. This seems to indicate that garage quality is not a key variable when trying to explain the sale price of a house.
 
-To select regressors, it is important to also analyze the correlation between numerical variables and to create clusters of variables based on correlations. Indeed we know that having correlated response variables is not efficient in linear models. This will help us know which variables contain redundant information and which variables to keep. 
 
-```{r correlations}
+To select regressors, it is also important to analyze the correlation between numerical variables. There might be multicollinearity problems, but this will help us to reduce the number of our regressors by creating clusters of variables based on correlations. Indeed we know that having correlated response variables is not efficient in linear models and we also want to create a reduced model.  
+
+```{r correlations, message=FALSE, warning=FALSE}
 var.numeric <- colnames(trainImputed)[sapply(trainImputed, is.numeric)]
 
 trainImputed %>%
@@ -89,8 +83,6 @@ trainImputed %>%
   cor() %>%
   corrplot(method = 'color', order = "hclust", tl.pos = 'n') %>%
   heatmap (symm=T)
-
-## Don't know how to print only the second graph
 ```
 
 Now that we have more information on our data, let's try to build multiple linear models. We will use what we found in this exploratory analysis part to select variables and build these different models. 
@@ -101,12 +93,12 @@ In this part, we are going to build different linear regression models and analy
 
 First, we start by doing a linear regression with all the variables of the dataset. 
 
-```{r}
+```{r full lm}
 price_lm = lm(LogSalePrice ~ ., data = trainPP)
 summary(price_lm)
 ```
 
-The results of this model show us that some of the variables are irrelevant (by looking at the pvalue of the test realized for each variables.
+The results of this model show us that some of the variables are irrelevant if we consider the p-value of the Student test statistic realized for each variable. At a significance level of 0.001, this technique suggests us to only keep the following variables: MSZoningFV, MSZoningRH, MSZoningRL, MSZoningRM, LotArea, Condition1Norm, Condition2PosN, OverallQual, OverallCond, YearBuilt, YearRemodAdd, RoofMatlCompShg, RoofMatlMembran, RoofMatlMetal, RoofMatlRoll, RoofMatlTar&Grv, RoofMatlWdShake, RoofMatlWdShngl, BldgTypeDuplex, KitchenQualGd, KitchenQualTA, FunctionalMaj2, Fireplaces, GarageQualGd, GarageQualFa.
 
 We then use a method based on minimizing the AIC to automatically select a reduced number of variables for our model.
 
