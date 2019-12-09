@@ -4,10 +4,6 @@ author: "Adrien Toulouse & Paul-Antoine Girard"
 output: pdf_document
 ---
 
-```{r setup, message=FALSE, warning=FALSE, include=FALSE}
-knitr::opts_chunk$set(echo = TRUE)
-```
-
 ```{r libraries, message=FALSE, warning=FALSE, include=FALSE}
 library(dplyr)
 library(corrplot)
@@ -19,7 +15,8 @@ library(car)
 
 Our task is to analyse a dataset, named **House Prices: Advanced Regression Techniques**. It contains our response variable, the sale price of about 1500 residential homes located in Ames, Iowa, along with 79 explanatory variables describing (almost) every aspect of the houses. The dataset has already been preprocessed to deal with missing values, so we will work on a reduced dataset containing 68 variables.
 
-Our work will be focused on finding the best linear prediction model using a minimum number of variables. We can therefore state our research hypothesis as follows: **Can we construct a performant linear regression model by selecting only the 10 most appropriate variables? How does it compare to larger models?** 
+Our work will be focused on finding the best linear prediction model using a minimum number of variables. We can therefore state our research hypothesis as follows:  
+**Can we construct a performant linear regression model by selecting only the 10 most appropriate variables? How does it compare to larger models?** 
 
 To test our hypothesis, we will start by describing the data and apply descriptive statistics to better apprehend it and preprocess the variables if necessary. We will then try to select the most important variables and after checking if the linear model assumptions are verified, we will build multiple linear regression models and compare them.
 
@@ -31,9 +28,10 @@ trainImputed <- read.csv(file='train_imputed.csv')
 trainPP <- read.csv (file='train_preprocessed.csv')
 ```
 
-We start by looking at the data to see how it is structured. We find that the *SalePrice* has skewness in its distribution. So, a first transformation we do is to take the log of the house prices to reduce the effect of the tail in the density of our response variable.
+We start by looking at the data to see how it is structured.  
+We find that the *SalePrice* has skewness in its distribution. So, a first transformation we do is to take the log of the house prices to reduce the effect of the tail in the density of our response variable.
 
-```{r log transformation, message=FALSE, warning=FALSE, include=FALSE}
+```{r log transformation}
 par(mfrow=c(2,1)) 
 plot(density(trainImputed$SalePrice), main='SalePrice density', sub='', xlab='', ylab='')
 trainImputed$LogSalePrice <- log(trainImputed$SalePrice)
@@ -45,6 +43,7 @@ plot(density(trainImputed$LogSalePrice), main='Log SalePrice density', sub='', x
 
 Then, we plot scatter plots for quantitative variables and boxplots for categorical variables. These plots help us to determine if some of them are highly related to the *SalePrice*, and might be added to our linear model. We determine that *Overallqual* seems to be strongly correlated with the *SalePrice*. This regressor rates the overall material and finish of the house. It is a kind of summary of other variables, so it can help us to reduce the size of our model as it explains well the price. Concerning categorical variables, a variable may need to be considered in our model if it has different boxplots for each category when considering the *SalePrice*, as this will indicate a clear dependency between the two variables. We then remark that the variable *MSZoning* corresponds to this situation and strength to be important to deal with in our model.
 **By going this way, we also determine that the following variables might be important to add to ou reduced linear model... However, some of them has outliers (need to deal with) or might be interesting to take the log of them or transform qualitative into levels...**
+
 ```{r plots1, message=FALSE, warning=FALSE}
 par(mfrow=c(1,2)) 
 ggplot(trainImputed, aes(OverallQual, LogSalePrice)) + geom_point() + geom_smooth()
@@ -94,29 +93,37 @@ In this part, we are going to build different linear regression models and analy
 ### Full model
 First, we start by doing a linear regression with all the variables of the dataset. 
 
-```{r full lm, include=FALSE, message=FALSE, warning=FALSE}
+```{r full lm, message=FALSE, warning=FALSE}
 full_model = lm(LogSalePrice ~ ., data = trainPP)
-#summary(full_model)$coefficient[,4]
 summary(full_model)
+#summary(full_model)$coefficient[,4]
 AIC(full_model)
 ```
 
-The results of this model show us that some of the variables are irrelevant if we consider the p-value of the Student test statistic realized for each variable. At a significance level of 0.001, this technique suggests us to only keep the following variables: MSZoning, LotArea, OverallQual, OverallCond, YearBuilt, YearRemodAdd, RoofMatl, TotalBsmtSF, CentralAir, GrLivArea, KitchenQual, Fireplaces, GarageQual. Concerning the qualitative variables, we decided to only keep the one that have many categories that are relevant for the model, and not only one (that is the case for the followings: Condition1, Condition2, Heating, Functional).  
-Overall, this full model has a $R^2$ coefficient of 0.94 (can't be improve since we can't add new variables), a $R^2_a$ of 0.93, and a AIC of -2314.3. The F test statistic yields a very low p-value, that shows that the model is relevant at a level of 0.1.
+The results of this first model show us that some of the variables are irrelevant if we consider the p-value of the Student test statistic realized for each variable. At a significance level of 0.001, this technique suggests us to only keep the following variables: MSZoning, LotArea, OverallQual, OverallCond, YearBuilt, YearRemodAdd, RoofMatl, TotalBsmtSF, CentralAir, GrLivArea, KitchenQual, Fireplaces, GarageQual. Concerning the qualitative variables, we decide to only keep the one that have many categories that are relevant for the model, and not only one (that is the case for the followings: Condition1, Condition2, Heating, Functional).  
+Overall, this full model has a $R^2$ coefficient of 0.94 (can't be improve since we can't add new variables), a $R^2_a$ of 0.93, and a AIC of -2314.3. The F test statistic yields a very low p-value, that shows that the model is eaningful at a level of 0.1.
 **may need to look at other criterion**
 
-```{r postulates, echo=FALSE, message=FALSE, warning=FALSE}
+```{r postulates}
 par(mfrow=c(2,2))
 plot(full_model)
 ```
 
-We need to verify if the postulates verify the hypothesis necessary for the validity of our regression model. The residuals seem to have a mean of zero, and a variance near 1 (even if some residuals aren't equally spread along the line). Also, they are gaussian, except for some extreme values. In fact, before -2 and after 2, the errors don't seem to follow the line generated by the quantiles of a gaussian distribution. Finally, none of the residuals have a cook distance larger than 0.5, so we can assume that there isn't any leverage point or outlier.
+We need to verify if the postulates verify the hypothesis necessary for the validity of our regression model. The residuals seem to have a mean of zero, and a variance near 1 (even if some residuals aren't equally spread along the line). However, the QQ-plot reveals that the gaussian assumption isn't satisfied. For extreme low and high values (before -2 and after 2), the errors are far from the diagonal that represents the quantiles of a gaussian distribution. Finally, none of the residuals on the last plot have a cook distance larger than 0.5, but R tells us that it didn't plot few points that has a high leverage, so we need to look deeper at these outliers.
+
+```{r}
+acf(residuals(full_model), main='Auto-correlation plot')
+#residualPlots(full_model)
+influenceIndexPlot(full_model)
+```
+
+
 
 ### Model using the forward method
 
 We now use a method based on minimizing the AIC to automatically select a reduced number of variables for our model. At each step, the model adds the variable which reduces the most the criterion, and stops when adding a variable doesn't improve the accuracy of the model.
 
-```{r both, include=FALSE, message=FALSE, warning=FALSE}
+```{r forward}
 select.variables.forward = step(full_model, scope= ~1, direction="forward", trace=FALSE) 
 summary(select.variables.forward)
 AIC(select.variables.forward)
@@ -125,7 +132,23 @@ AIC(select.variables.forward)
 This model still selects a lot of variables, and still has a AIC value of -2314.3. So this suggests that the forward method deletes only the variables which are really irrelevant for the model, and the AIC criterion for selection model didn't change. Also, by looking at the p-value of the Student test statistic realized for each variable, we remark that if we take only the regressors that have a p-value inferior to 0.01, we select the same variables as before.  
 Let's try to reduce again the number of regressors based on the p-values obtained for the different regressors, and what we discovered in the previous exploratory data analysis..
 
-### Model reduce based on the Student tests
+### Reduced model based on the Student tests
+
+In this part, we are going to construct a model based on the regressors selected by the p-values of the Student tests realized for each variable in the full linear regression model.
+
+```{r reduced_model}
+reduced_model = lm(LogSalePrice ~ MSZoning + LotArea + OverallQual + OverallCond + YearBuilt + YearRemodAdd + RoofMatl + TotalBsmtSF + CentralAir + GrLivArea + KitchenQual + Fireplaces + GarageQual, data = trainPP)
+summary(reduced_model)
+AIC(reduced_model)
+```
+
+We can observe that most of the variables still have a p-value for the Student test that is stricly less than 0.001, except *GarageQual* and *CentralAir*. The F-statistic yields that the model is meaningful, but we lose a lot of accuracy. In fact, the AIC value is now equal to -1695.5, $R^2$ and $R^2_a$ coefficients are approximately equal to 0.89. 
+
+```{r postulates 2}
+par(mfrow=c(2,2))
+plot(reduced_model)
+```
+
 
 ### Model based on our analysis in the first part
 
