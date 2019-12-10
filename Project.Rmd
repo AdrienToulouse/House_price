@@ -13,10 +13,10 @@ library(car)
 
 ## Introduction
 
-Our task is to analyse a dataset, named **House Prices: Advanced Regression Techniques**. It contains our response variable, the sale price of about 1500 residential homes located in Ames, Iowa, along with 79 explanatory variables describing (almost) every aspect of the houses. The dataset has already been preprocessed to deal with missing values, so we will work on a reduced dataset containing 68 variables.
+Our task is to analyse the dataset named **House Prices: Advanced Regression Techniques**. It contains our response variable, the sale price of about 1500 residential homes located in Ames, Iowa, along with 79 explanatory variables describing (almost) every aspect of the houses. The dataset has already been preprocessed to deal with missing values, so we will work on a reduced dataset containing 68 variables.
 
 Our work will be focused on finding the best linear prediction model using a minimum number of variables. We can therefore state our research hypothesis as follows:  
-**Can we construct a performant linear regression model by selecting only the 10 most appropriate variables? How does it compare to larger models?** 
+**Can we construct a performant linear regression model by selecting only the most appropriate variables? How does it compare to larger or other models?** 
 
 To test our hypothesis, we will start by describing the data and apply descriptive statistics to better apprehend it and preprocess the variables if necessary. We will then try to select the most important variables and after checking if the linear model assumptions are verified, we will build multiple linear regression models and compare them.
 

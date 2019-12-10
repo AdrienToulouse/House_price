@@ -9,55 +9,72 @@ output: html_document
 knitr::opts_chunk$set(echo = TRUE)
 ```
 
-# Avant preprocessing
-
 ```{r}
 library(dplyr)
 library(corrplot)
 library(ggplot2)
 ```
 
-
 ```{r}
 trainImputed <- read.csv(file = 'train_imputed.csv')
+trainPP <- read.csv(file = 'train_preprocessed.csv')
 ```
 
 ```{r}
-str(trainImputed)
-```
-
-
-```{r}
-summary(trainImputed)
-```
-
-
-```{r}
-boxplot(trainImputed$SalePrice)
+#str(trainImputed)
 ```
 
 ```{r}
+#summary(trainImputed)
+```
+
+#1. Log transformations 
+
+We reduce the effect of the tails in the distribution of the variables using log transformations. We transform 4 variables: SalePrice, LotArea, TotalBsmtSF, GrLivArea.
+
+```{r}
+par(mfrow=c(2,1))
 plot(density(trainImputed$SalePrice))
-```
-
-Reduce effect of the tail using log transformation (or BoxCox)
-
-```{r}
 trainImputed$LogSalePrice <- log(trainImputed$SalePrice)
 trainImputed <- select(trainImputed, -c("SalePrice"))
 plot(density(trainImputed$LogSalePrice))
 ```
 
-Check correlation between the different variable and then the correlation of Y with the variables.
-This ios not useful when you try to predict a variable. It is however very important when you try to see which variables are the most important to explain price. (Remember the p-value of statistical test for correlated variables). 
-
-
-# numeric variables
 
 ```{r}
-var.numeric <- colnames(trainImputed)[sapply(trainImputed, is.numeric)]
+par(mfrow=c(2,1))
+plot(density(trainImputed$LotArea))
+trainImputed$LogLotArea <- log(trainImputed$LotArea)
+trainImputed <- select(trainImputed, -c("LotArea"))
+plot(density(trainImputed$LogLotArea))
+```
 
-trainImputed %>%
+```{r}
+par(mfrow=c(2,1))
+plot(density(trainImputed$TotalBsmtSF))
+trainImputed$LogTotalBsmtSF <- log(trainImputed$TotalBsmtSF)
+trainImputed <- select(trainImputed, -c("TotalBsmtSF"))
+plot(density(trainImputed$LogTotalBsmtSF))
+```
+
+```{r}
+par(mfrow=c(2,1))
+plot(density(trainImputed$GrLivArea))
+trainImputed$LogGrLivArea <- log(trainImputed$GrLivArea)
+trainImputed <- select(trainImputed, -c("GrLivArea"))
+plot(density(trainImputed$LogGrLivArea))
+```
+
+
+# 2. Numeric variables: 
+
+Looking at the numeric variables, we check correlation between the different variables together and then the correlation of SalePrice with the variables.
+The first step is not useful when you try to predict a variable. It is however very important when you try to see which variables are the most important to explain price. (Remember the p-value of statistical test for correlated variables). 
+
+```{r}
+var.numeric <- colnames(trainPP)[sapply(trainPP, is.numeric)]
+
+trainPP %>%
   select(var.numeric) %>%
   cor() %>%
   corrplot(method = 'color', order = "hclust", tl.pos = 'n') %>%
@@ -65,29 +82,69 @@ trainImputed %>%
 ```
 
 ```{r}
-trainImputed %>%
+ggplot(trainImputed, aes(LotFrontage, LogLotArea)) + geom_point() + geom_smooth(method=lm)
+```
+
+```{r}
+ggplot(trainImputed, aes(LogTotalBsmtSF, Fireplaces)) + geom_point() + geom_smooth(method=lm)
+```
+
+```{r}
+ggplot(trainImputed, aes(YearBuilt, YearRemodAdd)) + geom_point() + geom_smooth(method=lm)
+```
+
+```{r, message=FALSE, warning=FALSE}
+trainPP %>%
   select(var.numeric) %>%
   GGally::ggpairs(columns = c(length(var.numeric), 1:5))
 ```
 
+#Let's now look at the correlations with our response variables.
+
+```{r}
+ggplot(trainImputed, aes(OverallQual, LogSalePrice)) + geom_point() + geom_smooth(method=lm)
+```
+
 Overall quality impact Sale Price. Looks like a linear relationship. we can include this predictor without doing any transformation. 
-
-```{r}
-trainImputed %>%
-  select(var.numeric) %>%
-  GGally::ggpairs(columns = c(length(var.numeric), 1:10))
-```
-
-```{r}
-ggplot(trainImputed, aes(OverallQual, LogSalePrice)) + geom_point() + geom_smooth()
-```
-
 ```{r}
 ggplot(trainImputed, aes(OverallCond, LogSalePrice)) + geom_point()
 ```
 
-# Factor variables
-Plot Y as a factor of a factor variable by using boxplot. 
+```{r}
+ggplot(trainImputed, aes(LogTotalBsmtSF, LogSalePrice)) + geom_point() + geom_smooth(method=lm)
+```
+
+```{r}
+ggplot(trainImputed, aes(LogLotArea, LogSalePrice)) + geom_point() + geom_smooth(method=lm)
+```
+```{r}
+ggplot(trainImputed, aes(LotFrontage, LogSalePrice)) + geom_point() + geom_smooth(method=lm)
+```
+
+```{r}
+ggplot(trainImputed, aes(YearBuilt, LogSalePrice)) + geom_point() + geom_smooth(method=lm)
+```
+```{r}
+ggplot(trainImputed, aes(YearRemodAdd, LogSalePrice)) + geom_point() + geom_smooth(method=lm)
+```
+
+```{r}
+ggplot(trainImputed, aes(Fireplaces, LogSalePrice)) + geom_point() + geom_smooth(method=lm)
+```
+
+#3. Factor variables: 
+
+We plot the SalePrice as a factor of the factor variables by using boxplots. 
+
+```{r}
+ggplot(data = trainImputed) + 
+  geom_boxplot(aes(y=LogSalePrice, x = CentralAir))
+```
+
+```{r}
+ggplot(data = trainImputed) + 
+  geom_boxplot(aes(y=LogSalePrice, x = RoofMatl))
+```
 
 ```{r}
 ggplot(data = trainImputed) + 
@@ -124,4 +181,33 @@ ggplot(data = trainImputed) +
   geom_boxplot(aes(y=LogSalePrice, x = Neighborhood))
 ```
 
-Try to plot the two variables together. (Ancova model with mszoning and property size for example)
+#4. Ancova analysis
+
+Here we try to plot two quantitative variables together with one factor variable. 
+
+```{r}
+p <- ggplot(trainImputed, aes(y=LogSalePrice, x=LogGrLivArea, color = MSZoning, fill = MSZoning)) + 
+  geom_point() + theme_classic()
+p + stat_smooth(method = "lm") 
+```
+
+This helps to make clear that while GrLiveArea has a large predictive effect for LogSalePrice (the slopes of all the lines are clearly non-zero), there is also an effect of group assignment: for example the houses assigned to the FV MSZoning have a higher Sale Price than the houses assigned to RH.  
+
+```{r}
+p <- ggplot(trainImputed, aes(y=LogSalePrice, x=LogTotalBsmtSF, color = CentralAir, fill = CentralAir)) + 
+  geom_point() + theme_classic()
+p + stat_smooth(method = "lm") 
+```
+
+This shows that while TotalBsmtSF has a large predictive effect for LogSalePrice (the slopes of the two lines are clearly non-zero), there is also an effect of group assignment: the houses with CentralAir have a higher LogSale Price. However since the slopes are the same, there seems to be no correlation between having CentralAir and the TotalBsmtSF. 
+
+
+
+```{r}
+p <- ggplot(trainImputed, aes(y=LogSalePrice, x=LogLotArea, color = MSZoning, fill = MSZoning)) + 
+  geom_point() + theme_classic()
+p + stat_smooth(method = "lm") 
+```
+
+
+MSZoning + LotArea + OverallQual + OverallCond + YearBuilt + YearRemodAdd + RoofMatl + TotalBsmtSF + CentralAir + GrLivArea + KitchenQual + Fireplaces + GarageQual
