@@ -9,6 +9,7 @@ library(dplyr)
 library(corrplot)
 library(ggplot2)
 library(car)
+library(lasso2)
 ```
 
 ## Introduction
@@ -23,7 +24,7 @@ To test our hypothesis, we will start by describing the data and apply descripti
 
 ## Exploratory Data Analysis
 
-```{r imports, echo=FALSE}
+```{r imports}
 trainImputed <- read.csv(file='train_imputed.csv')
 trainPP <- read.csv (file='train_preprocessed.csv')
 ```
@@ -37,12 +38,23 @@ plot(density(trainImputed$SalePrice), main='SalePrice density', sub='', xlab='',
 trainImputed$LogSalePrice <- log(trainImputed$SalePrice)
 trainImputed <- select(trainImputed, -c("SalePrice", "X")) #X is unrelated to our study
 trainPP$LogSalePrice <- log(trainPP$SalePrice)
-trainPP <- select(trainPP, -c("SalePrice", "X")) #X is unrelated to our study
+trainPP <- select(trainPP, -c("SalePrice")) #X is unrelated to our study
 plot(density(trainImputed$LogSalePrice), main='Log SalePrice density', sub='', xlab='', ylab='')
 ```
 
 Then, we plot scatter plots for quantitative variables and boxplots for categorical variables. These plots help us to determine if some of them are highly related to the *SalePrice*, and might be added to our linear model. We determine that *Overallqual* seems to be strongly correlated with the *SalePrice*. This regressor rates the overall material and finish of the house. It is a kind of summary of other variables, so it can help us to reduce the size of our model as it explains well the price. Concerning categorical variables, a variable may need to be considered in our model if it has different boxplots for each category when considering the *SalePrice*, as this will indicate a clear dependency between the two variables. We then remark that the variable *MSZoning* corresponds to this situation and strength to be important to deal with in our model.
 **By going this way, we also determine that the following variables might be important to add to ou reduced linear model... However, some of them has outliers (need to deal with) or might be interesting to take the log of them or transform qualitative into levels...**
+
+```{r}
+trainImputed$LogLotArea <- log(trainImputed$LotArea)
+trainImputed <- select(trainImputed, -c("LotArea"))
+trainImputed$LogTotalBsmtSF <- log(trainImputed$TotalBsmtSF)
+trainImputed <- select(trainImputed, -c("TotalBsmtSF"))
+trainImputed$LogGrLivArea <- log(trainImputed$GrLivArea)
+trainImputed <- select(trainImputed, -c("GrLivArea"))
+
+```
+
 
 ```{r plots1, message=FALSE, warning=FALSE}
 par(mfrow=c(1,2)) 
@@ -91,6 +103,7 @@ Now that we have more information on our data, let's try to build multiple linea
 In this part, we are going to build different linear regression models and analyse their differences to select the one that we think fits the best our research hypothesis.
 
 ### Full model
+
 First, we start by doing a linear regression with all the variables of the dataset. 
 
 ```{r full lm, message=FALSE, warning=FALSE}
@@ -100,21 +113,25 @@ summary(full_model)
 AIC(full_model)
 ```
 
-The results of this first model show us that some of the variables are irrelevant if we consider the p-value of the Student test statistic realized for each variable. At a significance level of 0.001, this technique suggests us to only keep the following variables: MSZoning, LotArea, OverallQual, OverallCond, YearBuilt, YearRemodAdd, RoofMatl, TotalBsmtSF, CentralAir, GrLivArea, KitchenQual, Fireplaces, GarageQual. Concerning the qualitative variables, we decide to only keep the one that have many categories that are relevant for the model, and not only one (that is the case for the followings: Condition1, Condition2, Heating, Functional).  
-Overall, this full model has a $R^2$ coefficient of 0.94 (can't be improve since we can't add new variables), a $R^2_a$ of 0.93, and a AIC of -2314.3. The F test statistic yields a very low p-value, that shows that the model is eaningful at a level of 0.1.
-**may need to look at other criterion**
+This first model shows us that some of the variables are irrelevant if we consider the p-value of the Student tests statistics realized for each variable. At a significance level of 0.001, this technique suggests us to only keep the following variables: MSZoning, LotArea, OverallQual, OverallCond, YearBuilt, YearRemodAdd, RoofMatl, TotalBsmtSF, CentralAir, GrLivArea, KitchenQual, Fireplaces, GarageQual. Concerning the qualitative variables, we decide to only keep the one that have many categories that are relevant for the model, and not only one (that is the case for the followings: Condition1, Condition2, Heating, Functional).  
+Overall, this full model has a $R^2$ coefficient of 0.94 (can't be improve since we can't add new variables), a $R^2_a$ of 0.93, and a AIC of -2314.3. The F test statistic yields a very low p-value, that shows that the model is meaningful at a level of 0.1.
+Now, we need to see if the residuals verify the postulates neccessary to valid the linear model.
 
 ```{r postulates}
 par(mfrow=c(2,2))
 plot(full_model)
 ```
+```{r homosc}
+acf(residuals(full_model), main='Auto-correlation plot')
+ncvTest(full_model)
+durbinWatsonTest(full_model)
+shapiro.test(residuals(full_model))
+```
 
-We need to verify if the postulates verify the hypothesis necessary for the validity of our regression model. The residuals seem to have a mean of zero, and a variance near 1 (even if some residuals aren't equally spread along the line). However, the QQ-plot reveals that the gaussian assumption isn't satisfied. For extreme low and high values (before -2 and after 2), the errors are far from the diagonal that represents the quantiles of a gaussian distribution. Finally, none of the residuals on the last plot have a cook distance larger than 0.5, but R tells us that it didn't plot few points that has a high leverage, so we need to look deeper at these outliers.
+The residuals seem to have a mean of zero. However, the others assumptions aren't verified. The Breush-Pagan, Durbin-Watson, and Shapiro-Wlik tests give all of them a p-value that is lower than 0.05. So , the hypothesis of homoscedastic variance, uncorrelation and gaussian distribution are rejected at a significance level of 5%. Finally, none of the residuals on the last plot have a cook distance larger than 0.5, but R tells us that it didn't plot few points that has a high leverage. Therefore, we need to work on our variables to define a model that verify the assumptions needed for its validity and to take a look on outliers.
 
 ```{r}
-acf(residuals(full_model), main='Auto-correlation plot')
-#residualPlots(full_model)
-influenceIndexPlot(full_model)
+outlierTest(full_model)
 ```
 
 
@@ -124,33 +141,85 @@ influenceIndexPlot(full_model)
 We now use a method based on minimizing the AIC to automatically select a reduced number of variables for our model. At each step, the model adds the variable which reduces the most the criterion, and stops when adding a variable doesn't improve the accuracy of the model.
 
 ```{r forward}
-select.variables.forward = step(full_model, scope= ~1, direction="forward", trace=FALSE) 
+reg0=lm(LogSalePrice~1,data=trainPP)
+select.variables.forward = step(reg0, LogSalePrice~MSSubClass+MSZoning+LotFrontage+LotArea+Street+LotShape+LandContour+Utilities+LotConfig+LandSlope+Neighborhood+Condition1+Condition2+BldgType+HouseStyle+OverallQual+OverallCond+YearBuilt+YearRemodAdd+RoofStyle+RoofMatl+Exterior1st+Exterior2nd+MasVnrType+MasVnrArea+ExterQual+ExterCond+Foundation+BsmtQual+BsmtCond+BsmtExposure+BsmtFinType1+BsmtFinSF1+BsmtFinType2+BsmtUnfSF+TotalBsmtSF+Heating+HeatingQC+CentralAir+Electrical+X1stFlrSF+X2ndFlrSF+GrLivArea+BsmtFullBath+BsmtHalfBath+FullBath+HalfBath+BedroomAbvGr+KitchenQual+TotRmsAbvGrd+Functional+Fireplaces+GarageType+GarageYrBlt+GarageFinish+GarageCars+GarageArea+GarageQual+GarageCond+PavedDrive+WoodDeckSF+OpenPorchSF+MoSold+YrSold+SaleType+SaleCondition, data=trainPP, trace=FALSE, direction=c('forward'))
 summary(select.variables.forward)
-AIC(select.variables.forward)
 ```
 
-This model still selects a lot of variables, and still has a AIC value of -2314.3. So this suggests that the forward method deletes only the variables which are really irrelevant for the model, and the AIC criterion for selection model didn't change. Also, by looking at the p-value of the Student test statistic realized for each variable, we remark that if we take only the regressors that have a p-value inferior to 0.01, we select the same variables as before.  
-Let's try to reduce again the number of regressors based on the p-values obtained for the different regressors, and what we discovered in the previous exploratory data analysis..
+```{r both}
+reg0=lm(LogSalePrice~1,data=trainPP)
+select.variables.both = step(reg0, LogSalePrice~MSSubClass+MSZoning+LotFrontage+LotArea+Street+LotShape+LandContour+Utilities+LotConfig+LandSlope+Neighborhood+Condition1+Condition2+BldgType+HouseStyle+OverallQual+OverallCond+YearBuilt+YearRemodAdd+RoofStyle+RoofMatl+Exterior1st+Exterior2nd+MasVnrType+MasVnrArea+ExterQual+ExterCond+Foundation+BsmtQual+BsmtCond+BsmtExposure+BsmtFinType1+BsmtFinSF1+BsmtFinType2+BsmtUnfSF+TotalBsmtSF+Heating+HeatingQC+CentralAir+Electrical+X1stFlrSF+X2ndFlrSF+GrLivArea+BsmtFullBath+BsmtHalfBath+FullBath+HalfBath+BedroomAbvGr+KitchenQual+TotRmsAbvGrd+Functional+Fireplaces+GarageType+GarageYrBlt+GarageFinish+GarageCars+GarageArea+GarageQual+GarageCond+PavedDrive+WoodDeckSF+OpenPorchSF+MoSold+YrSold+SaleType+SaleCondition, data=trainPP, trace=FALSE, direction=c('both'))
+summary(select.variables.both)
+```
 
-### Reduced model based on the Student tests
+```{r backward}
+select.variables.backward = step(full_model, scope= ~1, direction=c("backward"), trace=FALSE) 
+summary(select.variables.backward)
+```
 
-In this part, we are going to construct a model based on the regressors selected by the p-values of the Student tests realized for each variable in the full linear regression model.
+```{r AICs}
+AIC(select.variables.forward)
+AIC(select.variables.both)
+AIC(select.variables.backward)
+```
+
+These three techniques lead to the same model that has an AIC value of -2382.3. If we take this criterion as selection, this model is better than the full model, and also it selects less variables. The F-test gives a low p-value, so it is meaningful. If we look at the Student tests realized, we can observe that we found the same variables as before, but we can also add the two following variables: BsmtQual, BsmtFinSF1.
+
+### Reduced model based on the Student tests and our EDA work
+
+In this part, we are going to construct a model based on the regressors selected by the p-values of the Student tests realized for each variable in the linear regression model obtained by the forward method, and using the transformations we made in the first part.
+
+```{r transformations}
+trainPP$LogLotArea <- log(trainPP$LotArea)
+trainPP$LogTotalBsmtSF <- log(trainPP$TotalBsmtSF)
+trainPP$LogGrLivArea <- log(trainPP$GrLivArea)
+trainPP <- select(trainPP, -c("LotArea", "TotalBsmtSF", "GrLivArea"))
+```
+
+**Problems car valeurs négatives**
 
 ```{r reduced_model}
-reduced_model = lm(LogSalePrice ~ MSZoning + LotArea + OverallQual + OverallCond + YearBuilt + YearRemodAdd + RoofMatl + TotalBsmtSF + CentralAir + GrLivArea + KitchenQual + Fireplaces + GarageQual, data = trainPP)
+reduced_model = lm(LogSalePrice ~ MSZoning + LotArea + OverallQual + OverallCond + YearBuilt + YearRemodAdd + RoofMatl + BsmtQual + BsmtFinSF1 + TotalBsmtSF + CentralAir + GrLivArea + KitchenQual + Fireplaces + GarageQual, data = trainPP[-c(53, 54, 307, 306, 524, 804, 1183, 458, 1325),])
 summary(reduced_model)
 AIC(reduced_model)
 ```
 
-We can observe that most of the variables still have a p-value for the Student test that is stricly less than 0.001, except *GarageQual* and *CentralAir*. The F-statistic yields that the model is meaningful, but we lose a lot of accuracy. In fact, the AIC value is now equal to -1695.5, $R^2$ and $R^2_a$ coefficients are approximately equal to 0.89. 
+We can observe that some of the variables have now a p-value for the Student tests that larger than 0.1. So we can't reject the hypothesis that their coefficients are equal to 0. 
+However, the F-statistic yields that the model is meaningful, but we lose a lot of accuracy. In fact, the AIC value is now equal to -389.7, $R^2$ coefficient is approximately equal to 0.85. 
 
 ```{r postulates 2}
 par(mfrow=c(2,2))
 plot(reduced_model)
 ```
 
+```{r tests 2}
+acf(residuals(reduced_model), main='Auto-correlation plot')
+ncvTest(reduced_model)
+durbinWatsonTest(reduced_model)
+shapiro.test(residuals(reduced_model))
+```
 
-### Model based on our analysis in the first part
+```{r}
+outlierTest(reduced_model)
+```
+
+The postulates are all verified.
+
+### Model obtained by adding a lasso penalization
+
+We are now going to use a Lasso regression to find a reduced model. In fact, using this penalization induces sparsity in the estimator. So, it selects variables by putting some coefficients to zero.
+
+```{r lasso}
+library(pls)
+library(caret)
+library(glmnet)
+lasso=train(LogSalePrice~., trainPP, method='glmnet', tuneGrid=expand.grid(alpha=1,lambda=seq(0.01,0.1,length=10)))
+```
+
+```{r}
+lasso$bestTune
+varImp(lasso,scale=F)
+```
 
 
 ## Final model and prediction
