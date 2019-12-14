@@ -28,6 +28,17 @@ trainPP <- read.csv(file = 'train_preprocessed.csv')
 #summary(trainImputed)
 ```
 
+
+#Introduction : Variable Selection
+
+Our aim with this project is to focus on dimensionality reduction by doing variable selection. Variable selection can be defined as selecting a subset of the most relevant features. 
+The objectives of feature selection include: building simpler and more comprehensible models, improving performance, and preparing clean, understandable data. Indeed, with a large number of features, learning models tend to overfit which may cause performance degradation on unseen data. Moreover, data of high dimensionality can significantly increase the memory storage requirements and computational costs for data analytics.
+
+We can therefore adress the following question: what are the most relevant features to explain the sale price of houses in our dataset? 
+
+To answer our question we will first analyse the variables and assess their relevance by looking and the correlation with the regression target : SalePrice. We will also build and compare several linear regression models with different number of variables and finally conclude on the relevance of the features. 
+
+
 #1. Log transformations 
 
 We reduce the effect of the tails in the distribution of the variables using log transformations. We transform 4 variables: SalePrice, LotArea, TotalBsmtSF, GrLivArea.
