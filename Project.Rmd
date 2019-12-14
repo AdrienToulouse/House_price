@@ -16,10 +16,12 @@ library(lasso2)
 
 Our task is to analyse the dataset named **House Prices: Advanced Regression Techniques**. It contains our response variable, the sale price of about 1500 residential homes located in Ames, Iowa, along with 79 explanatory variables describing (almost) every aspect of the houses. The dataset has already been preprocessed to deal with missing values, so we will work on a reduced dataset containing 68 variables.
 
-Our work will be focused on finding the best linear prediction model using a minimum number of variables. We can therefore state our research hypothesis as follows:  
-**Can we construct a performant linear regression model by selecting only the most appropriate variables? How does it compare to larger or other models?** 
+Our aim within this project is to focus on dimensionality reduction by doing variable selection. Variable selection can be defined as selecting a subset of the most relevant features. 
+The objectives of feature selection include: building simpler and more comprehensible models, improving performance, and preparing clean, understandable data. Indeed, with a large number of features, learning models tend to overfit which may cause performance degradation on unseen data. Moreover, data of high dimensionality can significantly increase the memory storage requirements and computational costs for data analytics.
 
-To test our hypothesis, we will start by describing the data and apply descriptive statistics to better apprehend it and preprocess the variables if necessary. We will then try to select the most important variables and after checking if the linear model assumptions are verified, we will build multiple linear regression models and compare them.
+We can therefore adress the following question: **What are the most relevant features to explain the sale price of houses in our dataset?** 
+
+To answer our question we will first analyse the variables and assess their relevance by looking at the correlation with the regression target : SalePrice. We will also build and compare several linear regression models with different number of variables and finally conclude on the relevance of the features. Our work will be focused on finding the best linear prediction model using a minimum number of variables. We can therefore state our research hypothesis as follows: **Can we construct a performant linear regression model by selecting only the most appropriate variables? How does it compare to larger or other models?** 
 
 
 ## Exploratory Data Analysis
@@ -29,6 +31,7 @@ trainImputed <- read.csv(file='train_imputed.csv')
 trainPP <- read.csv (file='train_preprocessed.csv')
 ```
 
+# 1. Transformations: 
 We start by looking at the data to see how it is structured.  
 We find that the *SalePrice* has skewness in its distribution. So, a first transformation we do is to take the log of the house prices to reduce the effect of the tail in the density of our response variable.
 
@@ -41,10 +44,7 @@ trainPP$LogSalePrice <- log(trainPP$SalePrice)
 trainPP <- select(trainPP, -c("SalePrice")) #X is unrelated to our study
 plot(density(trainImputed$LogSalePrice), main='Log SalePrice density', sub='', xlab='', ylab='')
 ```
-
-Then, we plot scatter plots for quantitative variables and boxplots for categorical variables. These plots help us to determine if some of them are highly related to the *SalePrice*, and might be added to our linear model. We determine that *Overallqual* seems to be strongly correlated with the *SalePrice*. This regressor rates the overall material and finish of the house. It is a kind of summary of other variables, so it can help us to reduce the size of our model as it explains well the price. Concerning categorical variables, a variable may need to be considered in our model if it has different boxplots for each category when considering the *SalePrice*, as this will indicate a clear dependency between the two variables. We then remark that the variable *MSZoning* corresponds to this situation and strength to be important to deal with in our model.
-**By going this way, we also determine that the following variables might be important to add to ou reduced linear model... However, some of them has outliers (need to deal with) or might be interesting to take the log of them or transform qualitative into levels...**
-
+We do the same transformation for the variables LotArea, TotalBsmtSF and GrLivArea.
 ```{r}
 trainImputed$LogLotArea <- log(trainImputed$LotArea)
 trainImputed <- select(trainImputed, -c("LotArea"))
@@ -52,25 +52,65 @@ trainImputed$LogTotalBsmtSF <- log(trainImputed$TotalBsmtSF)
 trainImputed <- select(trainImputed, -c("TotalBsmtSF"))
 trainImputed$LogGrLivArea <- log(trainImputed$GrLivArea)
 trainImputed <- select(trainImputed, -c("GrLivArea"))
-
 ```
 
 
-```{r plots1, message=FALSE, warning=FALSE}
-par(mfrow=c(1,2)) 
-ggplot(trainImputed, aes(OverallQual, LogSalePrice)) + geom_point() + geom_smooth()
-(ggplot(data = trainImputed) + 
-  geom_boxplot(aes(y=LogSalePrice, x = MSZoning)))
+
+
+# 2. Numeric variables: 
+
+Looking at the numeric variables, we check correlation between the different variables together and then the correlation of SalePrice with the variables.
+The first step is not useful when you try to predict a variable. It is however very important when you try to see which variables are the most important to explain price. (Remember the p-value of statistical test for correlated variables). 
+To select regressors, it is also important to analyze the correlation between numerical variables. There might be multicollinearity problems, but this will help us to reduce the number of our regressors by creating clusters of variables based on correlations. Indeed we know that having correlated response variables is not efficient in linear models and we also want to create a reduced model.  
+
+```{r correlations, message=FALSE, warning=FALSE}
+var.numeric <- colnames(trainPP)[sapply(trainPP, is.numeric)]
+
+trainPP %>%
+  select(var.numeric) %>%
+  cor() %>%
+  corrplot(method = 'color', order = "hclust", tl.pos = 'n') %>%
+  heatmap (symm=T)
 ```
 
+Some variables like for example YearBuilt and YearRemodAdd are very strongly correlated and we will not need to keep both variables.
 
-This first analysis visually indicates clearly that MSZoning is an important variable to explain the Sale Price.
+```{r}
+ggplot(trainImputed, aes(YearBuilt, YearRemodAdd)) + geom_point() + geom_smooth(method=lm)
+```
+
+Let's now look at the correlations with our response variables to see which variables explain the house sale price well. 
+
+```{r}
+ggplot(trainImputed, aes(OverallQual, LogSalePrice)) + geom_point() + geom_smooth(method=lm)
+```
+
+```{r}
+ggplot(trainImputed, aes(LogTotalBsmtSF, LogSalePrice)) + geom_point() + geom_smooth(method=lm)
+```
+
+For example, Overall quality and LogTotalBsmtSF impact Sale Price as the scatter plots show what looks like a linear relationship. By plotting other scatter plots, we found that the variables YearBuilt, LogLotArea, OverallCond are also strongly correlated with the price. Including these predictors in our model should be a good idea. 
+
+The regressor *Overallqual* is particularly interesting as it rates the overall material and finish of the house. It is a kind of summary of other variables, so it can help us to reduce the size of our model as it explains well the price. 
+
+#3. Factor variables: 
+
+Concerning categorical variables, a variable may need to be considered in our model if it has different boxplots for each category when considering the *SalePrice*, as this will indicate a clear dependency between the two variables. 
+
+
+```{r}
+ggplot(data = trainImputed) + 
+  geom_boxplot(aes(y=LogSalePrice, x = MSZoning))
+```
+We remark that the variable *MSZoning* corresponds to this situation. Indeed, these boxplots are quite different visually from one another which indicates clearly that MSZoning is an important variable to explain the Sale Price.
+
 ```{r}
 res.aov <- aov(LogSalePrice ~ MSZoning, data = trainImputed)
 summary(res.aov)
 ```
 
 This is confirmed by the one way Anova test as the p-value is less than the significance level 0.05. We can conclude that there are significant differences between the MSZoning caregories when considering the Sale Price and make us say that we should include MSZoning in our model.
+
 ```{r}
 ggplot(data = trainImputed) + 
   geom_boxplot(aes(y=LogSalePrice, x = GarageQual))
@@ -83,20 +123,22 @@ summary(res.aov)
 
 We find similar results when looking at the GarageQual variable. However, the boxplots do not completely follow intuition. Indeed the boxplots indicate that on average houses with garages in excellent quality have a lower sale price that garages in good quality. This seems to indicate that garage quality is not a key variable when trying to explain the sale price of a house.
 
+By plotting other boxplots for the different variables, we found that the variables CentralAir, RoofMatl and Lot Config could also be good to explain the Sale Price.
 
-To select regressors, it is also important to analyze the correlation between numerical variables. There might be multicollinearity problems, but this will help us to reduce the number of our regressors by creating clusters of variables based on correlations. Indeed we know that having correlated response variables is not efficient in linear models and we also want to create a reduced model.  
+#4. Ancova analysis
 
-```{r correlations, message=FALSE, warning=FALSE}
-var.numeric <- colnames(trainImputed)[sapply(trainImputed, is.numeric)]
+Now we plot two quantitative variables together with one factor variable. 
 
-trainImputed %>%
-  select(var.numeric) %>%
-  cor() %>%
-  corrplot(method = 'color', order = "hclust", tl.pos = 'n') %>%
-  heatmap (symm=T)
+```{r}
+p <- ggplot(trainImputed, aes(y=LogSalePrice, x=LogGrLivArea, color = MSZoning, fill = MSZoning)) + 
+  geom_point() + theme_classic()
+p + stat_smooth(method = "lm") 
 ```
 
-Now that we have more information on our data, let's try to build multiple linear models. We will use what we found in this exploratory analysis part to select variables and build these different models. 
+This helps to make clear that while GrLiveArea has a large predictive effect for LogSalePrice (the slopes of all the lines are clearly non-zero), there is also an effect of group assignment: for example the houses assigned to the FV MSZoning have a higher Sale Price than the houses assigned to RH.  
+
+Now that we have more information on our data, let's try to build multiple linear models. We will use what we found in this exploratory analysis part to select variables and build our different models. 
+
 
 ## Modeling and Diagnostics
 
