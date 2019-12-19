@@ -93,7 +93,11 @@ trainPP %>%
 ```
 
 ```{r}
-ggplot(trainImputed, aes(LotFrontage, LogLotArea)) + geom_point() + geom_smooth(method=lm)
+ggplot(trainImputed, aes(OverallCond, OverallQual)) + geom_point() + geom_smooth(method=lm)
+```
+
+```{r}
+ggplot(trainImputed, aes(KitchenQual, BsmtQual)) + geom_point() + geom_smooth(method=lm)
 ```
 
 ```{r}
@@ -122,11 +126,11 @@ ggplot(trainImputed, aes(OverallCond, LogSalePrice)) + geom_point()
 ```
 
 ```{r}
-ggplot(trainImputed, aes(LogTotalBsmtSF, LogSalePrice)) + geom_point() + geom_smooth(method=lm)
+ggplot(trainImputed, aes(LogGrLivArea, LogLotArea)) + geom_point() + geom_smooth(method=lm)
 ```
 
 ```{r}
-ggplot(trainImputed, aes(LogLotArea, LogSalePrice)) + geom_point() + geom_smooth(method=lm)
+ggplot(trainImputed, aes(BsmtQual, LogSalePrice)) + geom_point() + geom_smooth(method=lm)
 ```
 ```{r}
 ggplot(trainImputed, aes(LotFrontage, LogSalePrice)) + geom_point() + geom_smooth(method=lm)
@@ -178,7 +182,7 @@ As the p-value is less than the significance level 0.05, we can conclude that th
 
 ```{r}
 ggplot(data = trainImputed) + 
-  geom_boxplot(aes(y=LogSalePrice, x = LotConfig))
+  geom_boxplot(aes(y=LogSalePrice, x = RoofMatl))
 ```
 
 ```{r}

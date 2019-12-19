@@ -14,14 +14,14 @@ library(lasso2)
 
 ## Introduction
 
-Our task is to analyse the dataset named **House Prices: Advanced Regression Techniques**. It contains our response variable, the sale price of about 1500 residential homes located in Ames, Iowa, along with 79 explanatory variables describing (almost) every aspect of the houses. The dataset has already been preprocessed to deal with missing values, so we will work on a reduced dataset containing 68 variables.
+Our task is to analyse the dataset named **House Prices: Advanced Regression Techniques**. It contains the sale price of about 1500 residential homes located in Ames, Iowa, along with 79 explanatory variables describing (almost) every aspect of the houses. The dataset has already been preprocessed to deal with missing values, so we will work on a reduced dataset containing 68 variables.
 
 Our aim within this project is to focus on dimensionality reduction by doing variable selection. Variable selection can be defined as selecting a subset of the most relevant features. 
-The objectives of feature selection include: building simpler and more comprehensible models, improving performance, and preparing clean, understandable data. Indeed, with a large number of features, learning models tend to overfit which may cause performance degradation on unseen data. Moreover, data of high dimensionality can significantly increase the memory storage requirements and computational costs for data analytics.
+The objectives of feature selection include: building simpler and more comprehensible models, improving performance, and preparing clean, understandable data. Indeed, with a large number of features, learning models tend to overfit which may cause performance degradation on unseen data. 
 
-We can therefore adress the following question: **What are the most relevant features to explain the sale price of houses in our dataset?** 
+We can therefore adress the following question: **What are the most relevant features to explain the sale price of houses of the dataset?** 
 
-To answer our question we will first analyse the variables and assess their relevance by looking at the correlation with the regression target: *SalePrice*. We will also build and compare several linear regression models with different number of variables and finally conclude on the relevance of the features. Our work will be focused on finding the best linear prediction model using a minimum number of variables. We can therefore state our research hypothesis as follows: **Can we construct a performant linear regression model by selecting only the most appropriate variables? How does it compare to larger or other models?** 
+To answer this question we will first analyse the variables and assess their relevance by looking at their correlation with the regression target: *SalePrice*. We will also build and compare several linear regression models with different number of variables and finally conclude on the relevance of the features. Our work will be focused on finding the best linear prediction model using a minimum number of variables. We can therefore state our research hypothesis as follows: **Can we construct a performant linear regression model by selecting only the most appropriate variables? How does it compare to larger or other models?** 
 
 
 ## Exploratory Data Analysis
@@ -44,7 +44,7 @@ trainImputed <- select(trainImputed, -c("SalePrice", "X")) #X is unrelated to ou
 plot(density(trainImputed$LogSalePrice), main='Log SalePrice density', sub='', xlab='', ylab='')
 ```
 
-We do the same transformation for the variables LotArea, TotalBsmtSF and GrLivArea.
+We do the same transformation for the variables LotArea, TotalBsmtSF and GrLivArea from our first analysis.
 
 ```{r log transformation 2}
 trainImputed$LogLotArea <- log(trainImputed$LotArea)
@@ -135,7 +135,16 @@ p + stat_smooth(method = "lm")
 
 This helps to make clear that while GrLiveArea has a large predictive effect for LogSalePrice (the slopes of all the lines are clearly non-zero), there is also an effect of group assignment: for example the houses assigned to the FV MSZoning have a higher Sale Price than the houses assigned to RH.  
 
-Now that we have more information on our data, let's try to build multiple linear models. We will use what we found in this exploratory analysis part to select variables and build our different models. 
+
+#Key findings from EDA
+To sum up, our findings from this first part are the following (we have not displayed all our graphs for space issues):
+ * we will use a log transformation on the sale price to reduce the impact of the tail in its distribution
+ * the variables YearBuilt and YearRemodAdd as well as the variables LotArea and LotFrontage are highly correlated two by two.
+ * the numeric variables LogTotalBsmtSF, LogGrLivArea, OverallQual, OverallCond, LogLotArea are interesting when explaining Sale Price because they are highly correlated with our response variables
+ * the factor variables MSZoning, CentralAir, BsmtQual, KitchenQual are interesting when explaining Sale Price because of the large difference in each category boxplots. The factor variable Roofmatl is not very interesting because it is highly unbalanced (almost all the observations take the value Compshg and we have only one observation for some of the other roof material types).  
+Moreover, we have confirmed our intuition with statistical tests and have ploted numeric and factor variables together with Ancova plots.
+
+Now that we have more information on our data, let's try to build multiple linear models. We will start from the full model and then use our findings from this exploratory analysis part to select variables and build other models. 
 
 
 ## Modeling and Diagnostics
@@ -290,5 +299,5 @@ Condition2, GrLivArea, OverallQual, Neighborhood, Functional, CentralAir, YearBu
 
 
 ## Conclusion
-
+  
 
