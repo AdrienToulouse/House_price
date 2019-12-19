@@ -295,24 +295,50 @@ varImp(lasso,scale=F)
 This method gives us the variables that explain the most our model. Therefore, we can select the following features: 
 Condition2, GrLivArea, OverallQual, Neighborhood, Functional, CentralAir, YearBuilt, GarageCars, LotArea, SaleType, OverallCond, RoofMatl, Condition1, BsmtFinSF1.
 
+
+121: RoofMatlMetal
+212: RoofMatlMembran
+1276: RoofMatlRoll
+1299: RoofMatClyTile
+Removed Roof beacause pb leverage 1 explain prof
+
+
+
 ## Comparison of models and predictions
 
 ```{r}
-#Import 
+train <- train[ !(train$Id %in% c(1299,524)), ]
+Ytrain = train$SalePrice
+Ytest = test$SalePrice
+train = select(train, -'Id')
+test = select(test, -'Id')
 ```
 
 ```{r prediction 1}
-lasso=train(SalePrice~., train, method='glmnet', tuneGrid=expand.grid(alpha=1,lambda=seq(0.01,0.1,length=10)))
+lasso=train(log(SalePrice)~., train, method='glmnet', tuneGrid=expand.grid(alpha=1,lambda=seq(0.01,0.1,length=10)))
 lasso
 ```
 
 ```{r}
-fittedTest=predict(lasso, newdata = test)
-fittedTest
-RMSE_lasso_train=sqrt(mean((fitted(lasso)-Ytrain)^2))
-RMSE_lasso_test=sqrt(mean((predict(lasso, newdata = test)-Ytest)^2))
+RMSE_lasso_train=sqrt(mean((fitted(lasso)-log(Ytrain))^2))
+RMSE_lasso_test=sqrt(mean((predict(lasso, newdata = test)-log(Ytest))^2))
 ```
 
+
+```{r prediction 2}
+reduced_model = lm(log(SalePrice) ~ MSZoning + LotArea + OverallQual + OverallCond + YearBuilt +  BsmtQual + BsmtFinSF1 + TotalBsmtSF + CentralAir + GrLivArea + KitchenQual + Fireplaces + GarageQual, data = train)
+predict = exp(fitted(reduced_model))
+RMSE_lm_train=sqrt(mean((fitted(reduced_model)-log(Ytrain))^2))
+RMSE_lm_train_2=sqrt(mean((predict-Ytrain)^2))
+RMSE_lm_test=sqrt(mean((predict(reduced_model, newdata = test)-log(Ytest))^2))
+print(RMSE_lm_train)
+print(RMSE_lm_train_2)
+print(RMSE_lm_test)
+```
+
+```{r}
+predict
+```
 
 
 ## Conclusion
