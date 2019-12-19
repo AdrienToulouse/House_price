@@ -160,7 +160,6 @@ trainPP$LogSalePrice <- log(trainPP$SalePrice)
 trainPP <- select(trainPP, -c("SalePrice", "X")) #X is not related to our study
 ```
 
-
 First, we start by doing a linear regression with all the variables of the dataset. 
 
 ```{r full lm, message=FALSE, warning=FALSE}
@@ -170,8 +169,8 @@ summary(full_model)
 AIC(full_model)
 ```
 
-This first model shows us that some of the variables are irrelevant if we consider the p-value of the Student tests statistics realized for each variable. At a significance level of 0.001, this technique suggests us to only keep the following variables: MSZoning, LotArea, OverallQual, OverallCond, YearBuilt, YearRemodAdd, RoofMatl, TotalBsmtSF, CentralAir, GrLivArea, KitchenQual, Fireplaces, GarageQual. Concerning the qualitative variables, we decide to only keep the one that have many categories that are relevant for the model, and not only one (that is the case for the followings: Condition1, Condition2, Heating, Functional).  
-Overall, this full model has a $R^2$ coefficient of 0.94 (can't be improve since we can't add new variables), a $R^2_a$ of 0.93, and a AIC of -2314.3. The F test statistic yields a very low p-value, that shows that the model is meaningful at a level of 0.1.
+This first model shows us that some of the variables are irrelevant if we consider the p-value of the Student tests statistics realized for each variable. At a significance level of 0.001, this technique suggests us to only keep the following variables: MSZoning, LotArea, OverallQual, OverallCond, YearBuilt, YearRemodAdd, RoofMatl, TotalBsmtSF, CentralAir, GrLivArea, KitchenQual, Fireplaces, GarageQual. Concerning the qualitative variables, we decide to only keep the one that have many categories that are relevant for the model at a significance level of 0.001, and not only one category (that is the case for the followings: Condition1, Condition2, Heating, Functional).  
+Overall, this full model has a $R^2$ coefficient of 0.94 (can't be improve since we can't add new variables), a $R^2_a$ of 0.93, and a AIC of -2314.3. The F test statistic yields a very low p-value, that shows that the model is meaningful at a level of 0.05.  
 Now, we need to see if the residuals verify the postulates neccessary to valid the linear model.
 
 ```{r postulates}
@@ -186,7 +185,7 @@ durbinWatsonTest(full_model)
 shapiro.test(residuals(full_model))
 ```
 
-The residuals seem to have a mean of zero. However, the others assumptions aren't verified. The Breush-Pagan, Durbin-Watson, and Shapiro-Wlik tests give all of them a p-value that is lower than 0.05. So, the hypothesis of homoscedastic variance, uncorrelation and gaussian distribution are rejected at a significance level of 5%. Finally, none of the residuals on the last plot have a cook distance larger than 0.5, but R tells us that it didn't plot few points that has a high leverage. Therefore, we need to work on our variables to define a model that verify the assumptions needed for its validity and to take a look on outliers.
+The residuals seem to have a mean of zero, and they are uncorrelated. However, the others assumptions aren't verified. The Breush-Pagan, and Shapiro-Wlik tests give all of them a p-value that is lower than 0.05. So, the hypotheses of homoscedastic variance, and gaussian distribution are rejected at a significance level of 5%. Finally, none of the residuals on the last plot have a cook distance larger than 0.5, but R tells us that it didn't plot few points that has a high leverage. Therefore, we need to work on our variables to define a model that verify the assumptions needed for its validity and to take a look on outliers.
 
 ```{r}
 outlierTest(full_model)
@@ -219,7 +218,7 @@ AIC(select.variables.both)
 AIC(select.variables.backward)
 ```
 
-These three methods lead to the same model that has an AIC value of -2382.3. If we take this criterion as selection, this model is better than the full model, and also it selects less variables. The F-test gives a low p-value, so it is meaningful. If we look at the Student tests realized, we can observe that we found the same variables as before, but we can also add the two following variables: BsmtQual, BsmtFinSF1.
+These three methods lead to the same model that has an AIC value of -2382.3. If we take this criterion as selection, this model is better than the full model, and also it selects less variables. The F-test gives a low p-value, so it is meaningful. Finally, if we look at the Student tests realized, we can observe that we found the same variables as before, but we can also add the two following variables: BsmtQual, BsmtFinSF1.
 
 Now, let's take a look at the residuals. We need to see if the reduction of the number of variables helps us to find a linear model that verify the assumptions needed for the validity.
 
@@ -235,33 +234,34 @@ durbinWatsonTest(select.variables.forward)
 shapiro.test(residuals(select.variables.forward))
 ```
 
+The residuals still don't verify the assumptions needed for the validity of our model. As before, the mean seem to be zero, but the others assumptions aren't verified. The Breush-Pagan, Durbin-Watson, and Shapiro-Wlik tests give all of them a p-value that is lower than 0.05, and there is still outliers that aren't plot on the last plot because they have a high leverage.
+
 ### Reduced model based on the Student tests and our EDA work
 
-In this part, we are going to construct a model based on the regressors selected by the p-values of the Student tests realized for each variable in the linear regression model obtained by the forward method, and using the transformations we made in the first part.
+In this part, we are going to construct a model based on the regressors selected by the p-values of the Student tests realized for each variable in the linear regression model obtained by the forward method. In order to obtain a model that verify the assumptions needed in a linear model, we need to work on outliers. We wanted to use the transformations we made in the first part, but how the variables have been encoded don't let us apply the log transformations (some values are now negative).
 
-```{r transformations}
-trainPP$LogLotArea <- log(trainPP$LotArea)
-trainPP$LogTotalBsmtSF <- log(trainPP$TotalBsmtSF)
-trainPP$LogGrLivArea <- log(trainPP$GrLivArea)
-trainPP <- select(trainPP, -c("LotArea", "TotalBsmtSF", "GrLivArea"))
-```
-
-**Problems car valeurs négatives**
+We will first plot our model with our selected variables to see how the postulates are verified and if there still are some outliers.
 
 ```{r reduced_model}
-reduced_model = lm(SalePrice ~ MSZoning + LotArea + OverallQual + OverallCond + YearBuilt + YearRemodAdd + RoofMatl + BsmtQual + BsmtFinSF1 + TotalBsmtSF + CentralAir + GrLivArea + KitchenQual + Fireplaces + GarageQual, data = trainPP)
+reduced_model = lm(LogSalePrice ~ MSZoning + LotArea + OverallQual + OverallCond + YearBuilt +  BsmtQual + BsmtFinSF1 + TotalBsmtSF + CentralAir + GrLivArea + KitchenQual + Fireplaces + GarageQual, data = trainPP[-c(524, 1299),])
 summary(reduced_model)
 AIC(reduced_model)
-#[-c(53, 54, 307, 306, 524, 804, 1183, 458, 1325),]
+#[-c(121, 272, 1276, 1299),]
 ```
 
-We can observe that some of the variables have now a p-value for the Student tests that larger than 0.1. So we can't reject the hypothesis that their coefficients are equal to 0. 
-However, the F-statistic yields that the model is meaningful, but we lose a lot of accuracy. In fact, the AIC value is now equal to -389.7, $R^2$ coefficient is approximately equal to 0.85. 
+We can observe that most of the variables still have a p-value for the Student tests that are smaller than 0.01, except the variable *GarageQual*. So we can reject the hypotheses that their coefficients are equal to 0. 
+The F-statistic yields that the model is meaningful, but the AIC is larger than before, and the $R^2$, $R^2_a$ coefficients are smaller. We need to see if the assumptions are verified.
 
 ```{r postulates 3}
 par(mfrow=c(2,2))
 plot(reduced_model)
 ```
+
+121: RoofMatlMetal
+212: RoofMatlMembran
+1276: RoofMatlRoll
+1299: RoofMatClyTile
+Removed Roof beacause pb leverage 1 explain prof
 
 ```{r tests 2}
 acf(residuals(reduced_model), main='Auto-correlation plot')
@@ -272,6 +272,7 @@ shapiro.test(residuals(reduced_model))
 
 ```{r}
 outlierTest(reduced_model)
+influenceIndexPlot(reduced_model)
 ```
 
 
@@ -294,7 +295,23 @@ varImp(lasso,scale=F)
 This method gives us the variables that explain the most our model. Therefore, we can select the following features: 
 Condition2, GrLivArea, OverallQual, Neighborhood, Functional, CentralAir, YearBuilt, GarageCars, LotArea, SaleType, OverallCond, RoofMatl, Condition1, BsmtFinSF1.
 
-## Final model and prediction
+## Comparison of models and predictions
+
+```{r}
+#Import 
+```
+
+```{r prediction 1}
+lasso=train(SalePrice~., train, method='glmnet', tuneGrid=expand.grid(alpha=1,lambda=seq(0.01,0.1,length=10)))
+lasso
+```
+
+```{r}
+fittedTest=predict(lasso, newdata = test)
+fittedTest
+RMSE_lasso_train=sqrt(mean((fitted(lasso)-Ytrain)^2))
+RMSE_lasso_test=sqrt(mean((predict(lasso, newdata = test)-Ytest)^2))
+```
 
 
 
