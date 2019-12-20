@@ -305,10 +305,18 @@ Condition2, GrLivArea, OverallQual, Neighborhood, Functional, CentralAir, YearBu
 lasso=train(SalePrice~., train, method='glmnet', tuneGrid=expand.grid(alpha=1,lambda=seq(0.01,0.1,length=10)))
 lasso
 ```
+524
+
+
 
 ```{r}
+train = select(train,-"Id")
+test = select(test,-"Id")
+Ytrain = train$SalePrice
+Ytest= test$SalePrice
+
 fittedTest=predict(lasso, newdata = test)
-fittedTest
+
 RMSE_lasso_train=sqrt(mean((fitted(lasso)-Ytrain)^2))
 RMSE_lasso_test=sqrt(mean((predict(lasso, newdata = test)-Ytest)^2))
 ```
