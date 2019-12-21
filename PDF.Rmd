@@ -1,0 +1,223 @@
+---
+title: "MAP 535 - Data Analysis Project"
+author: "Adrien Toulouse & Paul-Antoine Girard"
+output: pdf_document
+---
+```{r}
+knitr::opts_chunk$set(fig.width=13, fig.height=5.5) 
+```
+
+```{r libraries, message=FALSE, warning=FALSE, include=FALSE}
+library(dplyr)
+library(corrplot)
+library(ggplot2)
+library(car)
+library(lasso2)
+library(pls)
+library(caret)
+library(glmnet)
+```
+
+## Introduction
+Our task is to analyse the dataset named **House Prices: Advanced Regression Techniques**. It contains the sale price of about 1500 residential homes located in Ames, Iowa, along with 79 explanatory variables describing (almost) every aspect of the houses. The dataset has already been preprocessed to deal with missing values, so we will work on a reduced dataset containing 68 variables.
+
+Our aim within this project is to focus on dimensionality reduction by doing variable selection. Variable selection can be defined as selecting a subset of the most relevant features.
+The objectives of feature selection include: building simpler and more comprehensible models, improving performance, and preparing clean, understandable data. Indeed, with a large number of features, learning models tend to overfit which may cause performance degradation on unseen data.
+
+We can therefore adress the following question: **What are the most relevant features to explain the sale price of houses of the dataset?**
+
+To answer this question we will first analyse the variables and assess their relevance by looking at their correlation with the regression target: *SalePrice*. We will also build and compare several linear regression models with different number of variables and finally conclude on the relevance of the features. Our work will be focused on finding the best linear prediction model using a minimum number of variables. We can therefore state our research hypothesis as follows: **Can we construct a performant linear regression model by selecting only the most appropriate variables? How does it compare to larger models?**
+
+Note: This report condenses all our work. Not all graphs have been included for space issues. Please refer to the file with the full code if necessary.
+
+## Exploratory Data Analysis
+
+```{r imports}
+trainImputed <- read.csv(file='train_imputed.csv')
+trainPP <- read.csv(file='train_preprocessed.csv')
+```
+
+### 1. Transformations
+The histogram for the response variable *SalePrice* shows that it is skewed. So, a first transformation we do is to take the log of the house prices to normalize it.
+
+```{r log transformation}
+trainImputed$LogSalePrice <- log(trainImputed$SalePrice)
+trainImputed <- select(trainImputed, -c("SalePrice", "X")) #X is unrelated to our study
+trainPP$LogSalePrice <- log(trainPP$SalePrice)
+trainPP <- select(trainPP, -c("SalePrice", "X")) #X is not related to our study
+```
+
+We do similar transformations for the variables LotArea, TotalBsmtSF and GrLivArea.
+
+```{r log transformation 2}
+trainImputed$LogLotArea <- log(trainImputed$LotArea)
+trainImputed <- select(trainImputed, -c("LotArea"))
+trainImputed$LogTotalBsmtSF <- log(trainImputed$TotalBsmtSF)
+trainImputed <- select(trainImputed, -c("TotalBsmtSF"))
+trainImputed$LogGrLivArea <- log(trainImputed$GrLivArea)
+trainImputed <- select(trainImputed, -c("GrLivArea"))
+```
+
+### 2. Numeric variables
+
+Looking at the numeric variables, we analyse correlation between the different variables together as well as their correlation with SalePrice.
+The first step is very important when trying to see which variables are the most important to explain price since there might be multicollinearity problems. Indeed we know that having correlated response variables is not efficient in linear models and we detecting strong correlations will allow us to create a reduced model. Some variables like for example YearBuilt and YearRemodAdd are very strongly correlated and we will not need to keep both variables.
+Secondly, we look at the correlations with our response variables to see which variables explain the house sale price well. The regressor *Overallqual* is particularly interesting as it rates the overall material and finish of the house.
+
+```{r plot 2}
+ggplot(trainImputed, aes(OverallQual, LogSalePrice)) + geom_point() + geom_smooth(method=lm)
+```
+The scatter plots indicates a strong positive correlation between the two variables.By plotting other scatter plots, we found that the variables YearBuilt, YearRemodAdd, MasvnrArea, BsmtFinSF1, X1stFlrSF, LogGrLiveArea are also strongly correlated with the price. Including these predictors in our model should therefore be performant.
+
+### 3. Factor variables
+
+Concerning categorical variables, a variable will be interesting in our model if it has different boxplots for each category when considering *SalePrice*, as this will indicate a clear dependency between the two variables.
+
+```{r plot 4}
+ggplot(data = trainImputed) +
+  geom_boxplot(aes(y=LogSalePrice, x = MSZoning))
+```
+
+We remark that the variable *MSZoning* corresponds to this situation. Indeed, these boxplots are quite different visually from one another which indicates that MSZoning is an important variable to explain the Sale Price.
+
+```{r Anova}
+res.aov <- aov(LogSalePrice ~ MSZoning, data = trainImputed)
+summary(res.aov)
+```
+
+This is confirmed by a one way Anova test as the p-value is less than the significance level 0.05. We can conclude that there are significant differences between the MSZoning categories when considering the Sale Price and this leads us to include MSZoning in our future model.
+
+We find similar results when looking at the GarageQual variable. However, the boxplots do not completely follow intuition as they indicate that on average houses with garages in excellent quality have a lower sale price that garages in good quality. This reveals that garage quality is not a key variable when trying to explain the sale price of a house.
+
+We also note that some categorical variables like for example RoofMatl are not very interesting to explain sale price as they are too heavily unbalanced (almost all the observations take the value Compshg and we have only one observation for some of the other roof material types). This is also the case for Condition2.
+
+```{r}
+table(trainImputed$RoofMatl)
+```
+
+
+### 4. Ancova analysis
+We can also plot two quantitative variables together with one factor variable.
+
+```{r Ancova}
+p <- ggplot(trainImputed, aes(y=LogSalePrice, x=LogGrLivArea, color = MSZoning, fill = MSZoning)) +
+  geom_point() + theme_classic()
+p + stat_smooth(method = "lm")
+```
+
+This graph helps to make clear that while GrLiveArea has a large predictive effect for LogSalePrice (the slopes of all the lines are clearly non-zero), there is also an effect of group assignment: for example the houses assigned to the FV MSZoning have a higher Sale Price than the houses assigned to RH.  
+
+### 5. Key findings from EDA
+
+To sum up, our findings from this first part are the following:
+1. we used a log transformation on the sale price to reduce the impact of the tail in its distribution
+2. the variables YearBuilt and YearRemodAdd as well as the variables LotArea and LotFrontage are highly correlated two by two.
+3. the numeric variables LogTotalBsmtSF, LogGrLivArea, OverallQual, OverallCond, LogLotArea are interesting when explaining Sale Price because they are highly correlated with our response variables
+4. the factor variables MSZoning, CentralAir, BsmtQual, KitchenQual are interesting when explaining Sale Price because of the large difference in each category boxplots. Some variables like Roofmatl are highly unbalanced which is not very interesting for our model . 
+5. we have confirmed our intuitions with statistical tests and have ploted numeric and factor variables together with Ancova plots.
+
+Now that we have more information on our data, let's build multiple linear models. We will start from the full model and then use our findings from this exploratory analysis part as well as other techniques to select variables and build better models.
+
+## Modeling and Diagnostics
+
+### 1. Full model
+
+We start by doing a linear regression with all the variables of the dataset.
+
+```{r}
+full_model = lm(LogSalePrice ~ ., data = trainPP)
+```
+
+As we explained in the introduction, our interest in this study is to select variables that explain the best our model. Some of the variables are irrelevant if we consider the p-values related to Student test. At a significance level of 0.001, this technique suggests us to only keep the following variables: MSZoning, LotArea, OverallQual, OverallCond, YearBuilt, YearRemodAdd, RoofMatl, TotalBsmtSF, CentralAir, GrLivArea, KitchenQual, Fireplaces, GarageQual. Concerning the qualitative variables, we decide to only keep the one that have many categories that are relevant for the model at a significance level of 0.001, and not only one category (that is the case for the followings: Condition1, Condition2, Heating, Functional).  
+Overall, this full model has a $R^2$ coefficient of 0.94 (can't be improve since we can't add new variables), a $R^2_a$ of 0.93, and a AIC of -2314.3. The F test statistic yields a very low p-value, that shows that the model is meaningful at a level of 0.05.  
+Let's check if the residuals verify the postulates of the linear model.
+
+```{r postulates 1, warning=FALSE}
+par(mfrow=c(2,2))
+plot(full_model)
+```
+```{r tests 1}
+acf(residuals(full_model), main='Auto-correlation plot')
+```
+
+The residuals seem to have a mean of zero and they are uncorrelated. However, the other assumptions do not look verified. We check it by running a Breush-Pagan, and a Shapiro-Wilk tests. Both of them give a p-value that is lower than 0.05. So, the hypotheses of homoscedastic variance, and gaussian distribution are rejected at a significance level of 5%. Finally, none of the residuals have a cook distance larger than 1. Note that R informs us that it didn't plot a few points that have a leverage of one. These points mean the fitted value corresponds exactly to the observed value. Since we have many regressors in this model, this is explained by the fact that certain combinations of modalities are associated to only 1 observation. Therefore, we need to work on our selection of variables to reduce the number of regressors, and define a reduced model that verifies the assumptions required for its validity.
+
+### 2. Model using the forward method
+
+We use the different selection methods based on minimizing the AIC to automatically select a reduced number of variables for our model. 
+
+```{r backward}
+select.variables.backward = step(full_model, scope= ~1, direction=c("backward"), trace=FALSE)
+```
+
+The three methods (forward, backward, both) lead to the same model that has an AIC value of -2382.3. Comparing AICs this model is better than the full model, and also selects less variables. The F-test gives a low p-value, so it is meaningful. Finally, if we look at the Student tests done, we obtain the same variables as before and two additional variables: BsmtQual, BsmtFinSF1.
+
+Now, let's take a look at the residuals to see if postulates are now valid. 
+
+```{r postulates 2, warning=FALSE}
+par(mfrow=c(2,2))
+plot(select.variables.backward)
+```
+
+The residuals still don't verify the assumptions needed for the validity of our model. As before, the mean seem to be zero, but the others assumptions aren't verified. The Breush-Pagan, Durbin-Watson, and Shapiro-Wlik tests give all of them a p-value that is lower than 0.05. In addition, there are still observations that aren't plotted because they have a leverage of one. Therefore, we need to reduce even more the number of variables. To do so, we will use our work from the descriptive statistics.
+
+### 3. Reduced model based on the Student tests and our EDA work
+
+We are now going to construct a model based on the regressors selected by the p-values of the Student tests realized for each variable in the linear regression model obtained by the forward method, and from there do another selection based on our own analysis.  
+
+Note that in order to obtain a model that verify the assumptions needed in a linear model, we first wanted to use the log transformations made in the first part, but since the variables have been encoded with negative values we cannot apply those transformations.
+
+Our model starts with all the following variables selected in previous models: MSZoning, LotArea, OverallQual, OverallCond, YearBuilt, YearRemodAdd, RoofMatl, TotalBsmtSF, CentralAir, GrLivArea, KitchenQual, Fireplaces, GarageQual, BsmtQual, BsmtFinSF1.
+
+
+**Explain why we deleted some of the variables, use part I: TO UPDATE** 
+
+
+Furthermore, we noticed that most of the observations have a leverage one because of the variable *RoofMatl*. Indeed, as seen in the descriptive statistics part, there is only one observation belonging to the categories Metal, Membran, Roll, and ClyTile. Thus, we decided to drop this variable in our reduced model.
+
+Let's train the model with our selected variables to see how the postulates are verified and if there are outliers, and observations with leverage one.
+
+
+```{r reduced_model}
+reduced_model = lm(LogSalePrice ~ MSZoning + LotArea + OverallQual + OverallCond + YearBuilt + 
+                     BsmtQual + BsmtFinSF1 + TotalBsmtSF + CentralAir + GrLivArea + 
+                     KitchenQual + Fireplaces + GarageQual,
+                   data = trainPP[-c(524, 1299),])
+AIC(reduced_model)
+```
+
+We can observe that most of the variables still have a p-value for the Student tests that are smaller than 0.01, except the variable *GarageQual*. So we can reject the hypotheses that their coefficients are equal to 0.
+The F-statistic yields that the model is meaningful, but the AIC is larger than before, and the $R^2$, $R^2_a$ coefficients are smaller. Let's see if the postulates are verified for our reduced model.
+
+```{r postulates 3}
+par(mfrow=c(2,2))
+plot(reduced_model)
+```
+
+```{r outliers 3}
+influenceIndexPlot(reduced_model)
+```
+
+
+**???? are they valid? TO UPDATE**
+
+### 4. Model obtained by adding a lasso penalization
+
+Finally we are now going to use a Lasso regression model. In fact, adding the $L^1$ penalization induces sparsity in the estimator and Lasso does variable selection by putting some of the coefficients to zero.
+
+```{r lasso}
+lasso=train(LogSalePrice~., trainPP, method='glmnet', tuneGrid=expand.grid(alpha=1,lambda=seq(0.01,0.1,length=10)))
+```
+
+The lasso regression gives us the variables that explain the most its predictions. We can observe that this method uses mainly the following regressors: Condition2, GrLivArea, OverallQual, Neighborhood, Functional, CentralAir, YearBuilt, GarageCars, LotArea, SaleType, OverallCond, RoofMatl, Condition1, BsmtFinSF1.  
+We used some of these features in our reduced model, but the two models are still different with lasso selecting a lot more variables. It will be interesting to see how the two different models predict, and to compare their respective RMSE.
+
+ RMSE obtained by our reduced model: 0.1286821 **??? TO UPDATE**
+ 
+ RMSE obtained by lasso: 0.1239448
+
+## Conclusion
+
+Our analysis now allows us to answer our initial questions. We have found which variables explained the most Sale price and built a reduced model using a minimum number of variables. 
+Our reduced model is not completely as good as the lasso model when trying to predict Sale Price. However, it has the advantage to use a lot less variables which makes it faster and more easily explainable.
+**CONTINUE**

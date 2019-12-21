@@ -94,6 +94,17 @@ For example, Overall quality and LogTotalBsmtSF impact Sale Price as the scatter
 
 The regressor *Overallqual* is particularly interesting as it rates the overall material and finish of the house. It is a kind of summary of other variables, so it can help us to reduce the size of our model as it explains well the price.
 
+High positive correlation with Sale Price:
+
+OverallQual
+YearBuilt
+YearRemodAdd
+MasvnrArea
+BsmtFinSF1
+TotalBsmtSF
+1stFlrSF
+GrLiveArea
+
 ### 3. Factor variables
 
 Concerning categorical variables, a variable may need to be considered in our model if it has different boxplots for each category when considering the *SalePrice*, as this will indicate a clear dependency between the two variables.
@@ -124,7 +135,12 @@ summary(res.aov)
 
 We find similar results when looking at the GarageQual variable. However, the boxplots do not completely follow intuition. Indeed the boxplots indicate that on average houses with garages in excellent quality have a lower sale price that garages in good quality. This seems to indicate that garage quality is not a key variable when trying to explain the sale price of a house.
 
-By plotting other boxplots for the different variables, we found that the variables CentralAir, RoofMatl and Lot Config could also be good to explain the Sale Price.
+Some categorical variables like for example RoofMatl or Condition2 are not very interesting to explain sale price as they are too heavily unbalanced.
+```{r}
+table(trainImputed$RoofMatl)
+table(trainImputed$Condition2)
+```
+
 
 ### 4. Ancova analysis
 
@@ -255,8 +271,11 @@ Furthermore, we noticed that most of the observations have a leverage one becaus
 
 Let's train the model with our selected variables to see how the postulates are verified and if there are outliers, and observations with leverage one.
 
-```{r reduced_model}
 reduced_model = lm(LogSalePrice ~ MSZoning + LotArea + OverallQual + OverallCond + YearBuilt +  BsmtQual + BsmtFinSF1 + TotalBsmtSF + CentralAir + GrLivArea + KitchenQual + Fireplaces + GarageQual, data = trainPP[-c(524, 1299),])
+summary(reduced_model)
+
+```{r reduced_model}
+reduced_model = lm(LogSalePrice ~ MSZoning + LotArea + OverallQual + OverallCond + YearBuilt +  BsmtQual + BsmtFinSF1 + TotalBsmtSF + CentralAir + GrLivArea + Fireplaces + GarageQual, data = trainPP[-c(524, 1299),])
 summary(reduced_model)
 AIC(reduced_model)
 ```
@@ -298,7 +317,7 @@ varImp(lasso,scale=F)
 The lasso regression gives us the variables that explain the most its predictions. We can observe that this method uses mainly the following regressors: Condition2, GrLivArea, OverallQual, Neighborhood, Functional, CentralAir, YearBuilt, GarageCars, LotArea, SaleType, OverallCond, RoofMatl, Condition1, BsmtFinSF1.  
 We use some of these features in our reduced model, but this isn't the same selection. Therefore, it will be interesting to see how the two different models predict, and to compare their respective RMSE.
 
-## Comparison of models
+## RMSE
 
 In order to use the split already done, we need to modify these two dataset as we have done in our study. Thus, we are going to...
 
@@ -316,20 +335,14 @@ Ytest = test$LogSalePrice
 lasso=train(LogSalePrice~., train, method='glmnet', tuneGrid=expand.grid(alpha=1,lambda=0.01))
 lasso
 ```
-524
-
 
 
 ```{r}
-train = select(train,-"Id")
-test = select(test,-"Id")
-Ytrain = train$SalePrice
-Ytest= test$SalePrice
-
 fittedTest=predict(lasso, newdata = test)
 
 RMSE_lasso_train=sqrt(mean((fitted(lasso)-Ytrain)^2))
 RMSE_lasso_test=sqrt(mean((predict(lasso, newdata = test)-Ytest)^2))
+print(RMSE_lasso_train)
 print(RMSE_lasso_test)
 ```
 
@@ -338,10 +351,8 @@ print(RMSE_lasso_test)
 reduced_model = lm(LogSalePrice ~ MSZoning + LotArea + OverallQual + OverallCond + YearBuilt +  BsmtQual + BsmtFinSF1 + TotalBsmtSF + CentralAir + GrLivArea + KitchenQual + Fireplaces + GarageQual, data = train)
 
 RMSE_lm_train=sqrt(mean((fitted(reduced_model)-Ytrain)^2))
-RMSE_lm_train_2=sqrt(mean((exp(fitted(reduced_model))-exp(Ytrain))^2))
 RMSE_lm_test=sqrt(mean((predict(reduced_model, newdata = test)-Ytest)^2))
 print(RMSE_lm_train)
-print(RMSE_lm_train_2)
 print(RMSE_lm_test)
 ```
 
