@@ -100,8 +100,8 @@ table(trainImputed$RoofMatl)
 We can also plot two quantitative variables together with one factor variable.
 
 ```{r Ancova}
-p <- ggplot(trainImputed, aes(y=LogSalePrice, x=LogGrLivArea, color = MSZoning, fill = MSZoning)) +
-  geom_point() + theme_classic()
+p <- ggplot(trainImputed, aes(y=LogSalePrice, x=LogGrLivArea, color = MSZoning, 
+                              fill = MSZoning)) + geom_point() + theme_classic()
 p + stat_smooth(method = "lm")
 ```
 
@@ -163,31 +163,30 @@ The residuals still don't verify the assumptions needed for the validity of our 
 
 ### 3. Reduced model based on the Student tests and our EDA work
 
-We are now going to construct a model based on the regressors selected by the p-values of the Student tests realized for each variable in the linear regression model obtained by the forward method, and from there do another selection based on our own analysis.  
+In this part, we are going to construct a model based on the regressors selected by the p-values of the Student tests realized for each variable in the linear regression model obtained by the forward method, and by our work done in the first part of the study.  
 
-Note that in order to obtain a model that verify the assumptions needed in a linear model, we first wanted to use the log transformations made in the first part, but since the variables have been encoded with negative values we cannot apply those transformations.
+In order to obtain a model that verify the assumptions needed in a linear model, we first wanted to use the transformations made in the first part, but how the variables have been encoded don't let us apply the log transformations (some values are now negative).  
 
-Our model starts with all the following variables selected in previous models: MSZoning, LotArea, OverallQual, OverallCond, YearBuilt, YearRemodAdd, RoofMatl, TotalBsmtSF, CentralAir, GrLivArea, KitchenQual, Fireplaces, GarageQual, BsmtQual, BsmtFinSF1.
+Our base model contains all the following variables selected in the part II: MSZoning, LotArea, OverallQual, OverallCond, YearBuilt, YearRemodAdd, RoofMatl, TotalBsmtSF, CentralAir, GrLivArea, KitchenQual, Fireplaces, GarageQual, BsmtQual, BsmtFinSF1. From there we decided to remove the variables YearRemodAdd, RoofMatl, CentralAir, KitchenQual, BsmtFinSF1, GarageQual and to add the Neighborhood, GarageCars.
 
+Indeed, as we saw in our previous analysis, the numeric variables TotalBsmtSF, GrLivArea, OverallQual, OverallCond, LotArea are interesting when explaining Sale Price because they are highly correlated with our response variables. The factor variables MSZoning, Neighborhood, GarageCars and Fireplaces are interesting when explaining Sale Price because of the large difference in each category boxplots. 
+We removed the factor variable Roofmatl which is not very interesting because it is highly unbalanced and the variable YearRemodAdd because of its high correlation with YearBuilt.  
 
-**Explain why we deleted some of the variables, use part I: TO UPDATE** 
-
-
-Furthermore, we noticed that most of the observations have a leverage one because of the variable *RoofMatl*. Indeed, as seen in the descriptive statistics part, there is only one observation belonging to the categories Metal, Membran, Roll, and ClyTile. Thus, we decided to drop this variable in our reduced model.
+Our reduced model is finally composed of: MSZoning + LotArea + OverallQual + OverallCond + YearBuilt + TotalBsmtSF + GrLivArea + Neighborhood + GarageCars + Fireplaces.
 
 Let's train the model with our selected variables to see how the postulates are verified and if there are outliers, and observations with leverage one.
 
 
 ```{r reduced_model}
-reduced_model = lm(LogSalePrice ~ MSZoning + LotArea + OverallQual + OverallCond + YearBuilt + 
-                     BsmtQual + BsmtFinSF1 + TotalBsmtSF + CentralAir + GrLivArea + 
-                     KitchenQual + Fireplaces + GarageQual,
+reduced_model = lm(LogSalePrice ~ MSZoning + LotArea + OverallQual + 
+                     OverallCond + YearBuilt + TotalBsmtSF + 
+                     GrLivArea + Neighborhood + GarageCars + Fireplaces, 
                    data = trainPP[-c(524, 1299),])
 AIC(reduced_model)
 ```
 
-We can observe that most of the variables still have a p-value for the Student tests that are smaller than 0.01, except the variable *GarageQual*. So we can reject the hypotheses that their coefficients are equal to 0.
-The F-statistic yields that the model is meaningful, but the AIC is larger than before, and the $R^2$, $R^2_a$ coefficients are smaller. Let's see if the postulates are verified for our reduced model.
+We can observe that most of the variables still have a p-value for the Student tests that are smaller than 0.01, except for some of the categories of the variable *Neighborhood*.
+The F-statistic yields that the model is meaningful, but the AIC is larger than before, and the $R^2$, $R^2_a$ coefficients are smaller.
 
 ```{r postulates 3}
 par(mfrow=c(2,2))
@@ -198,26 +197,25 @@ plot(reduced_model)
 influenceIndexPlot(reduced_model)
 ```
 
+Looking at the model assumptions, the residuals the gaussian assumption is still not validated (we could'nt do some log transformations) but the others seem validated. Looking at the ncvTest we realize that the p-value is still lower than the 5% treshold but has been considerably improved compared to previous models and the Scale Location plot doesn't really show any special tendencies.
 
-**???? are they valid? TO UPDATE**
+### 4. Lasso Model
 
-### 4. Model obtained by adding a lasso penalization
-
-Finally we are now going to use a Lasso regression model. In fact, adding the $L^1$ penalization induces sparsity in the estimator and Lasso does variable selection by putting some of the coefficients to zero.
+Finally, we do a Lasso regression which does automatic variable selection by putting some of the coefficients to zero. In fact, adding the $L^1$ penalization induces sparsity in the estimator.
 
 ```{r lasso}
-lasso=train(LogSalePrice~., trainPP, method='glmnet', tuneGrid=expand.grid(alpha=1,lambda=seq(0.01,0.1,length=10)))
+lasso=train(LogSalePrice~., trainPP, method='glmnet', 
+            tuneGrid=expand.grid(alpha=1, lambda=seq(0.01,0.1,length=10)))
 ```
 
 The lasso regression gives us the variables that explain the most its predictions. We can observe that this method uses mainly the following regressors: Condition2, GrLivArea, OverallQual, Neighborhood, Functional, CentralAir, YearBuilt, GarageCars, LotArea, SaleType, OverallCond, RoofMatl, Condition1, BsmtFinSF1.  
-We used some of these features in our reduced model, but the two models are still different with lasso selecting a lot more variables. It will be interesting to see how the two different models predict, and to compare their respective RMSE.
+We used some of these features in our reduced model, lasso is less selective than our model and used a lot more regressors. Therefore, it will be interesting to see how the two different models predict, and to compare their respective RMSE (see file with full code for details).
 
- RMSE obtained by our reduced model: 0.1286821 **??? TO UPDATE**
+ RMSE obtained by lasso: 0.127
  
- RMSE obtained by lasso: 0.1239448
+ RMSE obtained by our reduced model: 0.124
 
 ## Conclusion
 
-Our analysis now allows us to answer our initial questions. We have found which variables explained the most Sale price and built a reduced model using a minimum number of variables. 
-Our reduced model is not completely as good as the lasso model when trying to predict Sale Price. However, it has the advantage to use a lot less variables which makes it faster and more easily explainable.
-**CONTINUE**
+Our analysis now allows us to provide answers to our initial questions. We have found which variables explained the most Sale price and built a reduced model using a minimum number of variables. 
+Our reduced model is as good as the lasso model when trying to predict Sale Price (similar RMSE). However, it has the advantage to use a lot less variables which makes it faster and more easily explainable.

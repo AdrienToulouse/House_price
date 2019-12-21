@@ -65,13 +65,13 @@ The first step is not useful when you try to predict a variable. It is however v
 To select regressors, it is important to analyze the correlation between numerical variables, since there might be multicollinearity problems, and we can create clusters of variables based on correlations. Indeed we know that having correlated response variables is not efficient in linear models and we also want to create a reduced model.  
 
 ```{r correlation}
-var.numeric <- colnames(trainPP)[sapply(trainPP, is.numeric)]
-
-trainPP %>%
-  select(var.numeric) %>%
-  cor() %>%
-  corrplot(method = 'color', order = "hclust", tl.pos = 'n') %>%
-  heatmap (symm=T)
+#var.numeric <- colnames(trainPP)[sapply(trainPP, is.numeric)]
+#
+#trainPP %>%
+#  select(var.numeric) %>%
+#  cor() %>%
+#  corrplot(method = 'color', order = "hclust", tl.pos = 'n') %>%
+#  heatmap (symm=T)
 ```
 
 Some variables like for example YearBuilt and YearRemodAdd are very strongly correlated and we will not need to keep both variables.
@@ -85,6 +85,7 @@ Let's now look at the correlations with our response variables to see which vari
 ```{r plot 2}
 ggplot(trainImputed, aes(OverallQual, LogSalePrice)) + geom_point() + geom_smooth(method=lm)
 ```
+
 
 ```{r plot 3}
 ggplot(trainImputed, aes(LogTotalBsmtSF, LogSalePrice)) + geom_point() + geom_smooth(method=lm)
@@ -255,7 +256,7 @@ durbinWatsonTest(select.variables.forward)
 shapiro.test(residuals(select.variables.forward))
 ```
 
-The residuals still don't verify the assumptions needed for the validity of our model. As before, the mean seem to be zero, but the others assumptions aren't verified. The Breush-Pagan, Durbin-Watson, and Shapiro-Wlik tests give all of them a p-value that is lower than 0.05. Also, there is still observations that aren't plot on the last plot because they have a leverage of one. So we need to reduce even more the number of variables and to use our work in the first to see which observations lead to this problem.
+The residuals still don't verify the assumptions needed for the validity of our model. As before, the mean seem to be zero, but the others assumptions aren't verified. The Breush-Pagan, Durbin-Watson, and Shapiro-Wilk tests give all of them a p-value that is lower than 0.05. Also, there is still observations that aren't plot on the last plot because they have a leverage of one. So we need to reduce even more the number of variables and to use our work in the first to see which observations lead to this problem.
 
 ### 3. Reduced model based on the Student tests and our EDA work
 
@@ -263,25 +264,24 @@ In this part, we are going to construct a model based on the regressors selected
 
 In order to obtain a model that verify the assumptions needed in a linear model, we first wanted to use the transformations made in the first part, but how the variables have been encoded don't let us apply the log transformations (some values are now negative).  
 
-Our model starts with all the following variables selected in the part II: MSZoning, LotArea, OverallQual, OverallCond, YearBuilt, YearRemodAdd, RoofMatl, TotalBsmtSF, CentralAir, GrLivArea, KitchenQual, Fireplaces, GarageQual, BsmtQual, BsmtFinSF1.
+Our base model contains all the following variables selected in the part II: MSZoning, LotArea, OverallQual, OverallCond, YearBuilt, YearRemodAdd, RoofMatl, TotalBsmtSF, CentralAir, GrLivArea, KitchenQual, Fireplaces, GarageQual, BsmtQual, BsmtFinSF1. From there we decided to remove the variables YearRemodAdd, RoofMatl, CentralAir, KitchenQual, BsmtFinSF1, GarageQual and to add the Neighborhood, GarageCars.
 
-**Explain why we deleted some of the variables, use part I**
-Furthermore, we noticed that most of the observations have a leverage one because of the variable *RoofMatl*. Indeed, there is only one observation (121) with the category Metal of the variable, and this is the same for the categories Membran, Roll, and ClyTile of this variable. So, we decided to drop it in our reduced model.
+Indeed, as we saw in our previous analysis, the numeric variables TotalBsmtSF, GrLivArea, OverallQual, OverallCond, LotArea are interesting when explaining Sale Price because they are highly correlated with our response variables. The factor variables MSZoning, Neighborhood, GarageCars and Fireplaces are interesting when explaining Sale Price because of the large difference in each category boxplots. 
+We removed the factor variable Roofmatl which is not very interesting because it is highly unbalanced and the variable YearRemodAdd because of its high correlation with YearBuilt.  
 
+Our reduced model is finally composed of: MSZoning + LotArea + OverallQual + OverallCond + YearBuilt + TotalBsmtSF + GrLivArea + Neighborhood + GarageCars + Fireplaces.
 
 Let's train the model with our selected variables to see how the postulates are verified and if there are outliers, and observations with leverage one.
-
-reduced_model = lm(LogSalePrice ~ MSZoning + LotArea + OverallQual + OverallCond + YearBuilt +  BsmtQual + BsmtFinSF1 + TotalBsmtSF + CentralAir + GrLivArea + KitchenQual + Fireplaces + GarageQual, data = trainPP[-c(524, 1299),])
-summary(reduced_model)
-
+    
 ```{r reduced_model}
-reduced_model = lm(LogSalePrice ~ MSZoning + LotArea + OverallQual + OverallCond + YearBuilt +  BsmtQual + BsmtFinSF1 + TotalBsmtSF + CentralAir + GrLivArea + Fireplaces + GarageQual, data = trainPP[-c(524, 1299),])
+reduced_model = lm(LogSalePrice ~ MSZoning + LotArea + OverallQual + OverallCond + YearBuilt + TotalBsmtSF + GrLivArea + Neighborhood + GarageCars + Fireplaces, data = trainPP[-c(524, 1299),])
 summary(reduced_model)
+
 AIC(reduced_model)
 ```
 
-We can observe that most of the variables still have a p-value for the Student tests that are smaller than 0.01, except the variable *GarageQual*. So we can reject the hypotheses that their coefficients are equal to 0.
-The F-statistic yields that the model is meaningful, but the AIC is larger than before, and the $R^2$, $R^2_a$ coefficients are smaller. We need to see if the assumptions are verified.
+We can observe that most of the variables still have a p-value for the Student tests that are smaller than 0.01, except for some of the categories of the variable *Neighborhood*.
+The F-statistic yields that the model is meaningful, but the AIC is larger than before, and the $R^2$, $R^2_a$ coefficients are smaller.
 
 ```{r postulates 3}
 par(mfrow=c(2,2))
@@ -300,10 +300,11 @@ outlierTest(reduced_model)
 influenceIndexPlot(reduced_model)
 ```
 
+Looking at the assumptions, the residuals the gaussian assumption is still not validated (we could'nt do some log transformations) but the others seem validated. Looking at the ncvTest we realize that the p-value is still lower than the 5% treshold but has been considerably improved compared to previous models and the Scale Location plot doesn't really show any special tendencies.
 
-### 4. Model obtained by adding a lasso penalization
+### 4. Lasso Model
 
-We are now going to use a Lasso regression to find its reduces the model. In fact, adding the $L^1$ penalization induces sparsity in the estimator. It does variable selection by putting some of the coefficients to zero.
+Finally, we do a Lasso regression which does automatic variable selection by putting some of the coefficients to zero. In fact, adding the $L^1$ penalization induces sparsity in the estimator.
 
 ```{r lasso}
 lasso=train(LogSalePrice~., trainPP, method='glmnet', tuneGrid=expand.grid(alpha=1,lambda=seq(0.01,0.1,length=10)))
@@ -315,11 +316,11 @@ varImp(lasso,scale=F)
 ```
 
 The lasso regression gives us the variables that explain the most its predictions. We can observe that this method uses mainly the following regressors: Condition2, GrLivArea, OverallQual, Neighborhood, Functional, CentralAir, YearBuilt, GarageCars, LotArea, SaleType, OverallCond, RoofMatl, Condition1, BsmtFinSF1.  
-We use some of these features in our reduced model, but this isn't the same selection. Therefore, it will be interesting to see how the two different models predict, and to compare their respective RMSE.
+We used some of these features in our reduced model, lasso is less selective than our model and used a lot more regressors. Therefore, it will be interesting to see how the two different models predict, and to compare their respective RMSE.
 
 ## RMSE
 
-In order to use the split already done, we need to modify these two dataset as we have done in our study. Thus, we are going to...
+In order to use the train-test split already done, we need to modify these two dataset as we have done in our study. 
 
 ```{r modifications train/test}
 train <- train[ !(train$Id %in% c(1299,524)), ]
@@ -336,25 +337,17 @@ lasso=train(LogSalePrice~., train, method='glmnet', tuneGrid=expand.grid(alpha=1
 lasso
 ```
 
-
-```{r}
-fittedTest=predict(lasso, newdata = test)
-
-RMSE_lasso_train=sqrt(mean((fitted(lasso)-Ytrain)^2))
-RMSE_lasso_test=sqrt(mean((predict(lasso, newdata = test)-Ytest)^2))
-print(RMSE_lasso_train)
-print(RMSE_lasso_test)
-```
-
-
 ```{r prediction reduced_model}
-reduced_model = lm(LogSalePrice ~ MSZoning + LotArea + OverallQual + OverallCond + YearBuilt +  BsmtQual + BsmtFinSF1 + TotalBsmtSF + CentralAir + GrLivArea + KitchenQual + Fireplaces + GarageQual, data = train)
-
-RMSE_lm_train=sqrt(mean((fitted(reduced_model)-Ytrain)^2))
+reduced_model = lm(LogSalePrice ~ MSZoning + LotArea + OverallQual + OverallCond + YearBuilt + TotalBsmtSF + GrLivArea + Neighborhood + GarageCars + Fireplaces, data = trainPP[-c(524, 1299),])
 RMSE_lm_test=sqrt(mean((predict(reduced_model, newdata = test)-Ytest)^2))
-print(RMSE_lm_train)
 print(RMSE_lm_test)
 ```
-
+ 
+ RMSE obtained by lasso: 0.127
+ 
+ RMSE obtained by our reduced model: 0.124
 
 ## Conclusion
+
+Our analysis now allows us to provide answers to our initial questions. We have found which variables explained the most Sale price and built a reduced model using a minimum number of variables. 
+Our reduced model is as good as the lasso model when trying to predict Sale Price (similar RMSE). However, it has the advantage to use a lot less variables which makes it faster and more easily explainable.
