@@ -338,26 +338,15 @@ print(RMSE_lasso_test)
 ```
 
 ```{r prediction reduced_model}
-reduced_model = lm(LogSalePrice ~ MSZoning + LotArea + OverallQual + OverallCond + YearBuilt + TotalBsmtSF + GrLivArea + Neighborhood + GarageCars + Fireplaces, data = train)
+reduced_model = lm(LogSalePrice ~ MSZoning + LotArea + OverallQual + OverallCond + YearBuilt + TotalBsmtSF + GrLivArea + GarageCars + Fireplaces, data = train)
+RMSE_lm_train=sqrt(mean((fitted(reduced_model)-Ytrain)^2))
 RMSE_lm_test=sqrt(mean((predict(reduced_model, newdata = test)-Ytest)^2))
+print(RMSE_lm_train)
 print(RMSE_lm_test)
 ```
 
-```{r prediction backward method}
-backward = lm(formula = LogSalePrice ~ OverallQual + GrLivArea + Neighborhood + 
-    BsmtFinSF1 + GarageCars + OverallCond + TotalBsmtSF + RoofMatl + 
-    YearBuilt + LotArea + MSZoning + Condition2 + KitchenQual + 
-    SaleCondition + Functional + Condition1 + BsmtExposure + 
-    HeatingQC + Fireplaces + BsmtQual + Exterior1st + YearRemodAdd + 
-    BldgType + BsmtUnfSF + Heating + GarageQual + LotConfig + 
-    CentralAir + LandSlope + BsmtFullBath + Foundation + GarageCond + 
-    GarageArea + SaleType + WoodDeckSF + Street + HalfBath + 
-    FullBath + GarageYrBlt, data = train)
-RMSE_back_test=sqrt(mean((predict(backward, newdata = test)-Ytest)^2))
-print(RMSE_back_test)
-```
-
-The lasso regression model returns predictions that lead to an RMSE of 0.127 on the test dataset. By comparison, our reduced model has a RMSE of 0.124 on the same dataset. THerefore, we can state that our variable selection improve the accuracy of our log predictions. If we want to have the real predictions, we need to take the exponential of our predictions.
+In order to compute the RMSE of our reduced model on the test dataset, we had to remove the variable *Neighborhood* of our linear model, because it takes values in the test dataset that aren't in the train dataset.  
+The lasso regression model returns predictions that lead to an RMSE of 0.121 on the test dataset. By comparison, our reduced model has a RMSE of 0.136 on the same dataset. Therefore, we can state that our variable selection didn't improve the accuracy of our log predictions, but it's almost equal. We have only 10 features in our reduced model, and barely reach the same accuracy of prediction.
 
 ## Conclusion
 

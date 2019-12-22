@@ -218,7 +218,7 @@ We used some of these features in our reduced model, but lasso is less selective
 
 ### 5. Comparison of different models
 
-The lasso regression model returns the log predictions, and obtains a RMSE of O.127 on the test dataset. By comparison, our reduced model has a RMSE of 0.124 on the same dataset. Therefore, we can state that our variable selection improve the accuracy of our log predictions. If we want to have the real predictions, we need to take the exponential of our predictions.
+The lasso regression model returns predictions that lead to an RMSE of 0.121 on the test dataset. By comparison, our reduced model has a RMSE of 0.136 on the same dataset. Therefore, we can state that our variable selection didn't improve the accuracy of our log predictions, but it's almost equal. We have only 10 features in our reduced model, and barely reach the same accuracy of prediction.
 
 ## Conclusion
 
