@@ -2,6 +2,7 @@
 title: "MAP 535 - Data Analysis Project"
 author: "Adrien Toulouse & Paul-Antoine Girard"
 output: pdf_document
+fontsize: 10pt
 ---
 
 ```{r, message=FALSE, warning=FALSE, echo=FALSE}
@@ -53,7 +54,7 @@ trainPP <- select(trainPP, -c("SalePrice", "X")) #X is unrelated to our study
 
 We observe the same particularity for the variables *LotArea*, *TotalBsmtSF* and *GrLivAreado*. So we do similar transformations for these variables.
 
-```{r log transformation 2}
+```{r log transformation 2, echo=FALSE}
 trainImputed$LogLotArea <- log(trainImputed$LotArea)
 trainImputed$LogTotalBsmtSF <- log(trainImputed$TotalBsmtSF)
 trainImputed$LogGrLivArea <- log(trainImputed$GrLivArea)
@@ -67,7 +68,7 @@ The first step is very important when trying to see which variables are the most
 Secondly, we look at the correlations with our response variables to see which variables explain the house sale price well.  
 The regressor *Overallqual* is particularly interesting as it rates the overall material and finish of the house.
 
-```{r plot 2}
+```{r plot 2, echo=FALSE}
 ggplot(trainImputed, aes(OverallQual, LogSalePrice)) + geom_point() + geom_smooth(method=lm)
 ```
 
@@ -77,14 +78,14 @@ The scatter plots indicate a strong positive correlation between the two variabl
 
 Concerning categorical variables, a variable will be interesting in our model if it has different boxplots for each category when considering *SalePrice*, as this will indicate a clear dependency between the two variables.
 
-```{r plot 4}
+```{r plot 4, echo=FALSE}
 ggplot(data = trainImputed) +
   geom_boxplot(aes(y=LogSalePrice, x = MSZoning))
 ```
 
 We remark that the variable *MSZoning* corresponds to this situation. Indeed, these boxplots are quite different visually from one another which indicates that MSZoning is an important variable to explain the Sale Price.
 
-```{r Anova}
+```{r Anova, echo=FALSE}
 res.aov <- aov(LogSalePrice ~ MSZoning, data = trainImputed)
 summary(res.aov)
 ```
@@ -95,7 +96,7 @@ We find similar results when looking at the *GarageQual* variable. However, the 
 
 We also note that some categorical variables like for example *RoofMatl* are not very interesting to explain sale price as they are too heavily unbalanced (almost all the observations take the value Compshg and we have only one observation for some of the other roof material types). This is also the case for *Condition2*.
 
-```{r values RoofMatl}
+```{r values RoofMatl, echo=FALSE}
 table(trainImputed$RoofMatl)
 ```
 
@@ -103,7 +104,7 @@ table(trainImputed$RoofMatl)
 
 We can also plot two quantitative variables together with one factor variable.
 
-```{r Ancova}
+```{r Ancova, echo=FALSE}
 p <- ggplot(trainImputed, aes(y=LogSalePrice, x=LogGrLivArea, color = MSZoning, 
                               fill = MSZoning)) + geom_point() + theme_classic()
 p + stat_smooth(method = "lm")
@@ -148,18 +149,9 @@ The residuals seem to have a mean of zero and they are uncorrelated. However, th
 
 We use the different selection methods based on minimizing the AIC to automatically select a reduced number of variables for our model. 
 
-```{r backward}
-select.variables.backward = step(full_model, scope= ~1, direction=c("backward"), trace=FALSE)
-```
-
 The three methods (forward, backward, both) lead to the same model that has an AIC value of -2382.3. Comparing AICs this model is better than the full model, and also selects less variables. The F-test gives a low p-value, so it is meaningful. Finally, if we look at the Student tests done, we obtain the same variables as before and two additional variables: *BsmtQual*, *BsmtFinSF1*.
 
 Now, let's take a look at the residuals to see if the postulates are now valid, and if the number of observations with leverage 1 is reduced. 
-
-```{r postulates 2, warning=FALSE}
-par(mfrow=c(2,2))
-plot(select.variables.backward)
-```
 
 The residuals still don't verify the assumptions needed for the validity of our model. As before, the mean seem to be zero, but the others assumptions aren't verified. The Breush-Pagan, Durbin-Watson, and Shapiro-Wlik tests give all of them a p-value that is lower than 0.05. In addition, there are still observations that aren't plotted because they have a leverage of one. Therefore, we need to reduce even more the number of variables. To do so, we will use our work from the descriptive statistics.
 
@@ -179,7 +171,7 @@ Our reduced model is finally composed of: *MSZoning*, *LotArea*, *OverallQual*, 
 
 Finally, we decided to remove two observations. We observed that the observations 524 and 1299 have a low cook distance compare to others (however not exceeding 1), and their associated studentized residuals are also very low. Therefore, they are regression outliers, and since the p-value of the Bonferroni test are very low, we decided to remove them from the dataset to be sure that they don't influence our predictions.
 
-```{r outliers 3}
+```{r outliers 3, echo=FALSE}
 influenceIndexPlot(lm(LogSalePrice ~ MSZoning + LotArea + OverallQual + 
                      OverallCond + YearBuilt + TotalBsmtSF + 
                      GrLivArea + Neighborhood + GarageCars + Fireplaces, 
@@ -189,7 +181,7 @@ influenceIndexPlot(lm(LogSalePrice ~ MSZoning + LotArea + OverallQual +
 Let's train the model with our selected variables to see how the postulates are verified and if there are outliers, and observations with leverage one.
 
 
-```{r reduced_model}
+```{r reduced_model, echo=FALSE}
 reduced_model = lm(LogSalePrice ~ MSZoning + LotArea + OverallQual + 
                      OverallCond + YearBuilt + TotalBsmtSF + 
                      GrLivArea + Neighborhood + GarageCars + Fireplaces, 
@@ -201,12 +193,12 @@ AIC(reduced_model)
 We can observe that most of the variables still have a p-value for the Student tests that are smaller than 0.01, except for some of the categories of the variable *Neighborhood*.
 The F-statistic yields that the model is meaningful, but the AIC is larger than before, and the $R^2$, $R^2_a$ coefficients are smaller. Therefore, the model selection criterions don't go in favor of this reduced model, but we now have only 10 features out of 68 at the beginning.
 
-```{r postulates 3}
+```{r postulates 3, echo=FALSE}
 par(mfrow=c(2,2))
 plot(reduced_model)
 ```
 
-```{r correlation 3}
+```{r correlation 3, echo=FALSE}
 acf(residuals(reduced_model), main='Auto-correlation plot')
 ```
 
@@ -216,7 +208,7 @@ Then, by looking at the model assumptions, we observe that the mean of the resid
 
 Finally, we do a Lasso regression which does automatic variable selection by putting some of the coefficients to zero. In fact, adding the $L^1$ penalization induces sparsity in the estimator.
 
-```{r lasso}
+```{r lasso, echo=FALSE}
 lasso=train(LogSalePrice~., trainPP, method='glmnet', 
             tuneGrid=expand.grid(alpha=1, lambda=seq(0.01,0.1,length=10)))
 ```
@@ -230,6 +222,5 @@ The lasso regression model returns the log predictions, and obtains a RMSE of O.
 
 ## Conclusion
 
-Our analysis now allows us to provide answers to our initial questions. We have found which variables explained the most Sale price and built a reduced model using a minimum number of variables.  
-Even if the model selection criterion
-Our reduced model is as good as the lasso model when trying to predict Sale Price (similar RMSE). However, it has the advantage to use a lot less variables which makes it faster and more easily explainable.
+Our analysis now allows us to provide answers to our initial questions. We have found which variables explained the most the sale price and built a reduced model using a minimum number of variables. We used only 10 variables out of 68 at the beginning, and we reached a correct score, compared to more complex model. Our reduced model is as good as the lasso model when trying to predict Sale Price (similar RMSE), and it has the advantage to use a lot less variables which makes it faster and more easily explainable.  
+Our work can be improve by adapting the preproccesing to our study. In fact, we think that the way it was preprocessed influenced our work. We couldn't use the log transformations on some variables, and we think it could have helped us to verify the assumptions of a linear regression. Therefore, possible future directions of research can be how to preprocessed the data to have a linear model that verify all the assumptions needed for its validity. Also, it can be on the algorithm used to predict the sale price of the houses. Many different algorithms exists, and some models (for example gradient boosting algorithms) might be more adapted to reach the lowest score of prediction.
