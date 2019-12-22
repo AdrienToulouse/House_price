@@ -19,7 +19,7 @@ library(glmnet)
 
 Our task is to analyze the dataset named **House Prices: Advanced Regression Techniques**. It contains the sale price of about 1500 residential homes located in Ames, Iowa, along with 79 explanatory variables describing (almost) every aspect of the houses. The dataset has already been preprocessed to deal with missing values, so we will work on a reduced dataset containing 68 variables.
 
-Our aim within this project is to focus on dimensionality reduction by doing a variable selection. Variable selection can be defined as selecting a subset of the most relevant features.  
+Our aim within this project is to focus on dimensionality reduction by doing variable selection. Variable selection can be defined as selecting a subset of the most relevant features.  
 The objectives of feature selection include: building simpler and more comprehensible models, improving performance, and preparing clean, and understandable data. Indeed, with a large number of features, learning models tend to overfit which may cause performance degradation on unseen data.
 
 We can, therefore, address the following question: **What are the most relevant features to explain the sale price of houses of the dataset?**
@@ -60,8 +60,9 @@ trainImputed <- select(trainImputed, -c("LotArea", "TotalBsmtSF", "GrLivArea"))
 ### 2. Numeric variables
 
 Looking at the numeric variables, we analyze the correlation between the different variables together as well as their correlation with *LogSalePrice*.  
-The first step is very important when trying to see which variables are the most important to explain price since there might be multicollinearity problems. Indeed we know that having correlated response variables is not efficient in linear models and detecting strong correlations will allow us to create a reduced model. Some variables like for example *YearBuilt* and *YearRemodAdd* are very strongly correlated. So we will not need to keep both variables.  
-Secondly, we look at the correlations with our response variables to see which variables explain the house sale price well. The regressor *Overallqual* is particularly interesting as it rates the overall material and finish of the house.
+The first step is very important when trying to see which variables are the most important to explain price since there might be multicollinearity problems. Indeed, we know that having correlated response variables is not efficient in linear models and detecting strong correlations will allow us to create a reduced model. Some variables like for example *YearBuilt* and *YearRemodAdd* are very strongly correlated and we will not need to keep both variables.  
+Secondly, we look at the correlations with our response variables to see which variables explain the house sale price well.  
+The regressor *Overallqual* is particularly interesting as it rates the overall material and finish of the house.
 
 ```{r correlation}
 #var.numeric <- colnames(trainPP)[sapply(trainPP, is.numeric)]
@@ -90,9 +91,8 @@ ggplot(trainImputed, aes(OverallQual, LogSalePrice)) + geom_point() + geom_smoot
 ggplot(trainImputed, aes(LogTotalBsmtSF, LogSalePrice)) + geom_point() + geom_smooth(method=lm)
 ```
 
-For example, *Overallqual* and *LogTotalBsmtSF* impact *LogSalePrice* as the scatter plots show what looks like a linear relationship. By plotting other scatter plots, we found that the variables *YearBuilt*, *YearRemodAdd*, *MasvnrArea*, *BsmtFinSF1*, *X1stFlrSF*, *LogGrLiveArea* are also strongly correlated with the price. Including these predictors in our model should therefore be performant.
+The scatter plot indicates a strong positive correlation between the two variables. By plotting other scatter plots, we found that the variables *YearBuilt*, *YearRemodAdd*, *MasvnrArea*, *BsmtFinSF1*, *X1stFlrSF*, *LogGrLiveArea* are also strongly correlated with the price. Including these predictors in our model should therefore be performant.
 
-The regressor *Overallqual* is particularly interesting as it rates the overall material and finish of the house. It is a kind of summary of other variables, so it can help us to reduce the size of our model as it explains well the price.
 
 ### 3. Factor variables
 
@@ -193,7 +193,7 @@ durbinWatsonTest(full_model)
 shapiro.test(residuals(full_model))
 ```
 
-The residuals seem to have a mean of zero and they are uncorrelated. However, the other assumptions do not look verified. We check it by running a Breush-Pagan, and a Shapiro-Wilk tests. Both of them give a p-value that is lower than 0.05. So, the hypotheses of homoscedastic variance, and gaussian distribution are rejected at a significance level of 5%. Finally, none of the residuals have a cook distance larger than 1. Note that R informs us that it didn't plot a few points that have a leverage of one. These points mean the fitted value corresponds exactly to the observed value. Since we have many regressors in this model, this is explained by the fact that certain combinations of modalities are associated to only 1 observation. Therefore, we need to work on our selection of variables to reduce the number of regressors, and define a reduced model that verifies the assumptions required for its validity.
+The residuals seem to have a mean of zero and they are uncorrelated. However, the other assumptions do not look verified. We check it by running a Breush-Pagan, and a Shapiro-Wilk test. Both of them give a p-value that is lower than 0.05. So, the hypotheses of homoscedastic variance, and gaussian distribution are rejected at a significance level of 5%. Finally, none of the residuals have a cook distance larger than 1. Note that R informs us that it didn't plot a few points that have a leverage of one. These points mean the fitted value corresponds exactly to the observed value. Since we have many regressors in this model, this is explained by the fact that certain combinations of modalities are associated to only 1 observation. Therefore, we need to work on our selection of variables to reduce the number of regressors, and define a reduced model that verifies the assumptions required for its validity.
 
 ```{r outliers 1}
 outlierTest(full_model)
@@ -258,7 +258,7 @@ We removed the factor variable *Roofmatl* which is not very interesting because 
 
 Our reduced model is finally composed of: *MSZoning*, *LotArea*, *OverallQual*, *OverallCond*, *YearBuilt*, *TotalBsmtSF*, *GrLivArea*, *Neighborhood*, *GarageCars*, *Fireplaces*.
 
-Finally, we decided to remove two observations. We observed that the observations 524 and 1299 have a low cook distance compare to others (however not exceeding 1), and their associated studentized residuals are also very low. Therefore, they are regression outliers, and since the p-value of the Bonferroni test are very low, we decided to remove them from the dataset to be sure that they don't influence our predictions.
+Finally, we decided to remove two observations. We observed that the observations 524 and 1299 have a high cook distance compare to others (however not exceeding 1), and their associated studentized residuals are also very low. Therefore, we considered them as regression outliers, and since the p-value of the Bonferroni test are very low, we decided to remove them from the dataset to be sure that they don't influence our predictions.
 
 ```{r outliers 3}
 influenceIndexPlot(lm(LogSalePrice ~ MSZoning + LotArea + OverallQual + 
@@ -346,9 +346,9 @@ print(RMSE_lm_test)
 ```
 
 In order to compute the RMSE of our reduced model on the test dataset, we had to remove the variable *Neighborhood* of our linear model, because it takes values in the test dataset that aren't in the train dataset.  
-The lasso regression model returns predictions that lead to an RMSE of 0.121 on the test dataset. By comparison, our reduced model has a RMSE of 0.136 on the same dataset. Therefore, we can state that our variable selection didn't improve the accuracy of our log predictions, but it's almost equal. We have only 10 features in our reduced model, and barely reach the same accuracy of prediction.
+The lasso regression model returns predictions that lead to an RMSE of 0.121 on the test dataset. By comparison, our reduced model has a RMSE of 0.136 on the same dataset. Therefore, we can state that our variable selection didn't improve the accuracy of our log predictions, but it's almost equal. We have only 10 features in our reduced model, and almost reach the same accuracy of prediction.
 
 ## Conclusion
 
-Our analysis now allows us to provide answers to our initial questions. We have found which variables explained the most the sale price and built a reduced model using a minimum number of variables. We used only 10 variables out of 68 at the beginning, and we reached a correct score, compared to more complex model. Our reduced model is as good as the lasso model when trying to predict Sale Price (similar RMSE), and it has the advantage to use a lot less variables which makes it faster and more easily explainable.  
-Our work can be improve by adapting the preproccesing to our study. In fact, we think that the way it was preprocessed influenced our work. We couldn't use the log transformations on some variables, and we think it could have helped us to verify the assumptions of a linear regression. Therefore, possible future directions of research can be how to preprocessed the data to have a linear model that verify all the assumptions needed for its validity. Also, it can be on the algorithm used to predict the sale price of the houses. Many different algorithms exists, and some models (for example gradient boosting algorithms) might be more adapted to reach the lowest score of prediction.
+Our analysis now allows us to provide answers to our initial questions. We have found which variables explained the most the sale price and built a reduced model using a minimum number of variables. We used only 10 variables out of 68 at the beginning, and we reached a correct score, compared to more complex model. Our reduced model is almost as good as the lasso model when trying to predict Sale Price (similar RMSE), and it has the advantage to use a lot less variables which makes it faster and more easily explainable.  
+Our work could be improved by adapting the preproccesing to our study. In fact, we think that the way it was preprocessed influenced our work. We didn't use the log transformations on some variables, and we think that this could have helped us to verify the gaussian assumption. Therefore, possible future directions of research could be how to preprocess data to have a linear model that verifies all the assumptions needed for its validity. We could also have tried other algorithms to predict the sale price of the houses. Many different algorithms exists, and some models (for example gradient boosting algorithms) might be more adapted to reach better predictions. However, such models are often not as easy to interpret. 
