@@ -3,6 +3,7 @@ title: "MAP 535 - Data Analysis Project"
 author: "Adrien Toulouse & Paul-Antoine Girard"
 output: pdf_document
 fontsize: 10pt
+geometry: margin=1.6cm
 ---
 
 ```{r, message=FALSE, warning=FALSE, echo=FALSE}
@@ -24,7 +25,7 @@ library(glmnet)
 
 Our task is to analyze the dataset named **House Prices: Advanced Regression Techniques**. It contains the sale price of about 1500 residential homes located in Ames, Iowa, along with 79 explanatory variables describing (almost) every aspect of the houses. The dataset has already been preprocessed to deal with missing values, so we will work on a reduced dataset containing 68 variables.
 
-Our aim within this project is to focus on dimensionality reduction by doing a variable selection. Variable selection can be defined as selecting a subset of the most relevant features.  
+Our aim within this project is to focus on dimensionality reduction by doing variable selection. Variable selection can be defined as selecting a subset of the most relevant features.  
 The objectives of feature selection include: building simpler and more comprehensible models, improving performance, and preparing clean, and understandable data. Indeed, with a large number of features, learning models tend to overfit which may cause performance degradation on unseen data.
 
 We can, therefore, address the following question: **What are the most relevant features to explain the sale price of houses of the dataset?**
@@ -52,7 +53,7 @@ trainPP$LogSalePrice <- log(trainPP$SalePrice)
 trainPP <- select(trainPP, -c("SalePrice", "X")) #X is unrelated to our study
 ```
 
-We observe the same particularity for the variables *LotArea*, *TotalBsmtSF* and *GrLivAreado*. So we do similar transformations for these variables.
+We observe the same particularity for the variables *LotArea*, *TotalBsmtSF* and *GrLivAreado* and we do similar transformations for these variables.
 
 ```{r log transformation 2, echo=FALSE}
 trainImputed$LogLotArea <- log(trainImputed$LotArea)
@@ -64,7 +65,7 @@ trainImputed <- select(trainImputed, -c("LotArea", "TotalBsmtSF", "GrLivArea"))
 ### 2. Numeric variables
 
 Looking at the numeric variables, we analyze the correlation between the different variables together as well as their correlation with *LogSalePrice*.  
-The first step is very important when trying to see which variables are the most important to explain price since there might be multicollinearity problems. Indeed we know that having correlated response variables is not efficient in linear models and detecting strong correlations will allow us to create a reduced model. Some variables like for example *YearBuilt* and *YearRemodAdd* are very strongly correlated. So we will not need to keep both variables.  
+The first step is very important when trying to see which variables are the most important to explain price since there might be multicollinearity problems. Indeed, we know that having correlated response variables is not efficient in linear models and detecting strong correlations will allow us to create a reduced model. Some variables like for example *YearBuilt* and *YearRemodAdd* are very strongly correlated and we will not need to keep both variables.  
 Secondly, we look at the correlations with our response variables to see which variables explain the house sale price well.  
 The regressor *Overallqual* is particularly interesting as it rates the overall material and finish of the house.
 
@@ -72,7 +73,7 @@ The regressor *Overallqual* is particularly interesting as it rates the overall 
 ggplot(trainImputed, aes(OverallQual, LogSalePrice)) + geom_point() + geom_smooth(method=lm)
 ```
 
-The scatter plots indicate a strong positive correlation between the two variables. By plotting other scatter plots, we found that the variables *YearBuilt*, *YearRemodAdd*, *MasvnrArea*, *BsmtFinSF1*, *X1stFlrSF*, *LogGrLiveArea* are also strongly correlated with the price. Including these predictors in our model should therefore be performant.
+The scatter plot indicates a strong positive correlation between the two variables. By plotting other scatter plots, we found that the variables *YearBuilt*, *YearRemodAdd*, *MasvnrArea*, *BsmtFinSF1*, *X1stFlrSF*, *LogGrLiveArea* are also strongly correlated with the price. Including these predictors in our model should therefore be performant.
 
 ### 3. Factor variables
 
@@ -83,7 +84,7 @@ ggplot(data = trainImputed) +
   geom_boxplot(aes(y=LogSalePrice, x = MSZoning))
 ```
 
-We remark that the variable *MSZoning* corresponds to this situation. Indeed, these boxplots are quite different visually from one another which indicates that MSZoning is an important variable to explain the Sale Price.
+We remark that the variable *MSZoning* corresponds to this situation. Indeed, these boxplots are quite different visually from one another which indicates that *MSZoning* is an important variable to explain the Sale Price.
 
 ```{r Anova, echo=FALSE}
 res.aov <- aov(LogSalePrice ~ MSZoning, data = trainImputed)
@@ -119,7 +120,7 @@ To sum up, our findings from this first part are the following:
 1. We used a log transformation on the sale price to reduce the impact of the tail in its distribution.  
 2. The variables *YearBuilt* and *YearRemodAdd* as well as the variables *LotArea* and *LotFrontage* are highly correlated two by two.  
 3. The numeric variables *LogTotalBsmtSF*, *LogGrLivArea*, *OverallQual*, *OverallCond*, *LogLotArea* are interesting when explaining Sale Price because they are highly correlated with our response variables.  
-4. The factor variables *MSZoning*, *CentralAir*, *BsmtQual*, *KitchenQual* are interesting when explaining Sale Price because of the large difference in each category boxplots. Some variables like *Roofmatl* are highly unbalanced which is not very interesting for our model.  
+4. The factor variables *MSZoning*, *CentralAir*, *BsmtQual*, *KitchenQual* are interesting when explaining Sale Price because of the large differences in each category boxplots. Some variables like *Roofmatl* are highly unbalanced which make them not very interesting for our model.  
 5. We have confirmed our intuitions with statistical tests and have ploted numeric and factor variables together with Ancova plots.  
 
 Now that we have more information on our data, let's build multiple linear models. We will start from the full model and then use our findings from this exploratory analysis part as well as other techniques to select variables and build better models.
@@ -143,7 +144,7 @@ par(mfrow=c(2,2))
 plot(full_model)
 ```
 
-The residuals seem to have a mean of zero and they are uncorrelated. However, the other assumptions do not look verified. We check it by running a Breush-Pagan, and a Shapiro-Wilk tests. Both of them give a p-value that is lower than 0.05. So, the hypotheses of homoscedastic variance, and gaussian distribution are rejected at a significance level of 5%. Finally, none of the residuals have a cook distance larger than 1. Note that R informs us that it didn't plot a few points that have a leverage of one. These points mean the fitted value corresponds exactly to the observed value. Since we have many regressors in this model, this is explained by the fact that certain combinations of modalities are associated to only 1 observation. Therefore, we need to work on our selection of variables to reduce the number of regressors, and define a reduced model that verifies the assumptions required for its validity.
+The residuals seem to have a mean of zero and they are uncorrelated. However, the other assumptions do not look verified. We check it by running a Breush-Pagan, and a Shapiro-Wilk test. Both of them give a p-value that is lower than 0.05. So, the hypotheses of homoscedastic variance, and gaussian distribution are rejected at a significance level of 5%. Finally, none of the residuals have a cook distance larger than 1. Note that R informs us that it didn't plot a few points that have a leverage of one. These points mean the fitted value corresponds exactly to the observed value. Since we have many regressors in this model, this is explained by the fact that certain combinations of modalities are associated to only 1 observation. Therefore, we need to work on our selection of variables to reduce the number of regressors, and define a reduced model that verifies the assumptions required for its validity.
 
 ### 2. Model using the backward method
 
@@ -159,7 +160,7 @@ The residuals still don't verify the assumptions needed for the validity of our 
 
 In this part, we are going to construct a model based on the regressors selected by the p-values of the Student tests realized for each variable in the linear regression model obtained by the forward method, and by our work done in the first part of the study.  
 
-In order to obtain a model that verify the assumptions needed in a linear model, we first wanted to use the transformations made in the first part, but how the variables have been encoded don't let us apply the log transformations (some values are now negative).  
+In order to obtain a model that verifies the assumptions needed in a linear model, we first wanted to use the transformations made in the first part. However, the way variables have been encoded don't let us apply such log transformations as some values are now negative.  
 
 Our base model contains all the following variables selected in the part II:  *MSZoning*, *LotArea*, *OverallQual*, *OverallCond*, *YearBuilt*, *YearRemodAdd*, *RoofMatl*, *TotalBsmtSF*, *CentralAir*, *GrLivArea*, *KitchenQual*, *Fireplaces*, *GarageQual*, *BsmtQual*, and *BsmtFinSF1*.  
 From there we decided to remove the variables *YearRemodAdd*, *RoofMatl*, *CentralAir*, *KitchenQual*, *BsmtFinSF1*, *GarageQual* and to add *Neighborhood*, and *GarageCars*.  
@@ -169,7 +170,7 @@ We removed the factor variable *Roofmatl* which is not very interesting because 
 
 Our reduced model is finally composed of: *MSZoning*, *LotArea*, *OverallQual*, *OverallCond*, *YearBuilt*, *TotalBsmtSF*, *GrLivArea*, *Neighborhood*, *GarageCars*, *Fireplaces*.
 
-Finally, we decided to remove two observations. We observed that the observations 524 and 1299 have a low cook distance compare to others (however not exceeding 1), and their associated studentized residuals are also very low. Therefore, they are regression outliers, and since the p-value of the Bonferroni test are very low, we decided to remove them from the dataset to be sure that they don't influence our predictions.
+Finally, we decided to remove two observations. We observed that the observations 524 and 1299 have a high cook distance compare to others (however not exceeding 1), and their associated studentized residuals are also very low. Therefore, we considered them as regression outliers, and since the p-value of the Bonferroni test are very low, we decided to remove them from the dataset to be sure that they don't influence our predictions.
 
 ```{r outliers 3, echo=FALSE}
 influenceIndexPlot(lm(LogSalePrice ~ MSZoning + LotArea + OverallQual + 
@@ -178,7 +179,7 @@ influenceIndexPlot(lm(LogSalePrice ~ MSZoning + LotArea + OverallQual +
                    data = trainPP))
 ```
 
-Let's train the model with our selected variables to see how the postulates are verified and if there are outliers, and observations with leverage one.
+Let's train the model with our selected variables to see how the postulates are verified and  to verify if there are outliers and observations with leverage one.
 
 
 ```{r reduced_model, echo=FALSE}
@@ -202,7 +203,7 @@ plot(reduced_model)
 acf(residuals(reduced_model), main='Auto-correlation plot')
 ```
 
-Then, by looking at the model assumptions, we observe that the mean of the residuals is still zero, and the residuals are uncorrelated. The homoscedastic variance seems satisfied on the Scale Location plot, but the Breush-Pagan test still returns a p-value lower than the 5% treshold, that suggests us to reject the homoscedastic variance hypothesis. This is the same case concerning the gaussian assumption, but tt could have been better if we could have use the log transformation on some variables as we stated before.  
+Then, by looking at the model assumptions, we observe that the mean of the residuals is still zero, and the residuals are uncorrelated. The homoscedastic variance seems satisfied on the Scale Location plot, but the Breush-Pagan test still returns a p-value lower than the 5% treshold, that suggests us to reject the homoscedastic variance hypothesis. We have the same concern regarding the gaussian assumption, but it could have been made better by using the log transformation on some variables as we stated before.  
 
 ### 4. Lasso Model
 
@@ -214,13 +215,13 @@ lasso=train(LogSalePrice~., trainPP, method='glmnet',
 ```
 
 The lasso regression gives us the variables that explain the most its predictions. We can observe that this method uses mainly the following regressors: *Condition2*, *GrLivArea*, *OverallQual*, *Neighborhood*, *Functional*, *CentralAir*, *YearBuilt*, *GarageCars*, *LotArea*, *SaleType*, *OverallCond*, *RoofMatl*, *Condition1*, *BsmtFinSF1*.  
-We used some of these features in our reduced model, but lasso is less selective than our model and uses a lot more regressors. Therefore, it will be interesting to see how the two different models predict, and to compare their respective RMSE (see file with full code for details).
+We used some of these features in our reduced model, but the lasso model is less selective than our reduced model and uses a lot more regressors. Therefore, it will be interesting to see how the two models perform to predict, and to compare their respective RMSE (see file with full code for details).
 
 ### 5. Comparison of different models
 
-The lasso regression model returns predictions that lead to an RMSE of 0.121 on the test dataset. By comparison, our reduced model has a RMSE of 0.136 on the same dataset. Therefore, we can state that our variable selection didn't improve the accuracy of our log predictions, but it's almost equal. We have only 10 features in our reduced model, and barely reach the same accuracy of prediction.
+The lasso regression model returns predictions that lead to an RMSE of 0.121 on the test dataset. By comparison, our reduced model has a RMSE of 0.136 on the same dataset. Therefore, we can state that our variable selection didn't improve the accuracy of our log predictions, but it's almost equal. We have only 10 features in our reduced model, and almost reach the same accuracy of prediction.
 
 ## Conclusion
 
-Our analysis now allows us to provide answers to our initial questions. We have found which variables explained the most the sale price and built a reduced model using a minimum number of variables. We used only 10 variables out of 68 at the beginning, and we reached a correct score, compared to more complex model. Our reduced model is as good as the lasso model when trying to predict Sale Price (similar RMSE), and it has the advantage to use a lot less variables which makes it faster and more easily explainable.  
-Our work can be improve by adapting the preproccesing to our study. In fact, we think that the way it was preprocessed influenced our work. We couldn't use the log transformations on some variables, and we think it could have helped us to verify the assumptions of a linear regression. Therefore, possible future directions of research can be how to preprocessed the data to have a linear model that verify all the assumptions needed for its validity. Also, it can be on the algorithm used to predict the sale price of the houses. Many different algorithms exists, and some models (for example gradient boosting algorithms) might be more adapted to reach the lowest score of prediction.
+Our analysis now allows us to provide answers to our initial questions. We have found which variables explained the most the sale price and built a reduced model using a minimum number of variables. We used only 10 variables out of 68 at the beginning, and we reached a correct score, compared to more complex model. Our reduced model is almost as good as the lasso model when trying to predict Sale Price (similar RMSE), and it has the advantage to use a lot less variables which makes it faster and more easily explainable.  
+Our work could be improved by adapting the preproccesing to our study. In fact, we think that the way it was preprocessed influenced our work. We didn't use the log transformations on some variables, and we think that this could have helped us to verify the gaussian assumption. Therefore, possible future directions of research could be how to preprocess data to have a linear model that verifies all the assumptions needed for its validity. We could also have tried other algorithms to predict the sale price of the houses. Many different algorithms exists, and some models (for example gradient boosting algorithms) might be more adapted to reach better predictions. However, such models are often not as easy to interpret. 
