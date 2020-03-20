@@ -1,0 +1,8 @@
+# House_prices
+Kaggle competition House prices: Advanced Regression Techniques
+
+Our task is to analyze the dataset named House Prices: Advanced Regression Techniques. It contains the sale price of about 1500 residential homes located in Ames, Iowa, along with 79 explanatory variables describing (almost) every aspect of the houses. The dataset has already been preprocessed to deal with missing values, so we will work on a reduced dataset containing 68 variables.
+Our aim within this project is to focus on dimensionality reduction by doing variable selection. Variable selection can be defined as selecting a subset of the most relevant features.
+The objectives of feature selection include: building simpler and more comprehensible models, improving performance, and preparing clean, and understandable data. Indeed, with a large number of features, learning models tend to overfit which may cause performance degradation on unseen data.
+We can, therefore, address the following question: What are the most relevant features to explain the sale price of houses of the dataset?
+To answer this question we will first analyze the variables and assess their relevance by looking at their correlation with the regression target: SalePrice. We will also build and compare several linear regression models with different numbers of variables and finally conclude on the relevance of the features. Our work will be focused on finding the best linear prediction model using a minimum number of variables. We can, therefore, state our research hypothesis as follows: Can we construct a performant linear regression model by selecting only the most appropriate variables? How does it compare to larger or other models?
